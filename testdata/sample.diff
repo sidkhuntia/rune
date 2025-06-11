@@ -1,0 +1,23 @@
+diff --git a/main.go b/main.go
+index 1234567..abcdefg 100644
+--- a/main.go
++++ b/main.go
+@@ -1,5 +1,8 @@
+ package main
+ 
++import "fmt"
++
+ func main() {
+-    // TODO: implement
++    fmt.Println("Hello, CommitGen!")
++    // Added implementation
+ }
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..9876543
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,3 @@
++# CommitGen
++
++A CLI tool for generating commit messages using AI. 
