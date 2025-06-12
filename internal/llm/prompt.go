@@ -42,7 +42,7 @@ Generate ONLY the commit message (no quotes, no explanations):
 // BuildCommitPrompt creates a prompt for generating commit messages from a git diff
 func BuildCommitPrompt(diff string) string {
 	// Truncate very long diffs to avoid token limits
-	const maxDiffLength = 4000
+	const maxDiffLength = 500_000
 	if len(diff) > maxDiffLength {
 		diff = diff[:maxDiffLength] + "\n... (diff truncated)"
 	}

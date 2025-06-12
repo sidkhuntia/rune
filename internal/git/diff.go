@@ -28,7 +28,7 @@ func ExtractDiff(staged bool) (string, error) {
 
 	diff := strings.TrimSpace(string(output))
 	if diff == "" {
-		return "", fmt.Errorf("no changes found")
+		return "", fmt.Errorf("no changes found %s\n %s", cmd.String(), string(output))
 	}
 
 	return diff, nil

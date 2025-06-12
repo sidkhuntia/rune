@@ -81,7 +81,7 @@ func (c *QwenClient) GenerateCommitMessage(ctx context.Context, diff string) (st
 			},
 		},
 		Temperature: 0.3,
-		MaxTokens:   150,
+		MaxTokens:   512,
 	}
 
 	jsonBody, err := json.Marshal(reqBody)
