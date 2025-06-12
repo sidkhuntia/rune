@@ -3,7 +3,6 @@ package commitmsg
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -174,7 +173,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 // openEditor opens the user's preferred editor to edit the commit message
 func openEditor(initialMessage string) (string, error) {
 	// Create a temporary file
-	tmpFile, err := ioutil.TempFile("", "commitmsg-*.txt")
+	tmpFile, err := os.CreateTemp("", "commitmsg-*.txt")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
@@ -203,7 +202,7 @@ func openEditor(initialMessage string) (string, error) {
 	}
 
 	// Read the edited content
-	content, err := ioutil.ReadFile(tmpFile.Name())
+	content, err := os.ReadFile(tmpFile.Name())
 	if err != nil {
 		return "", fmt.Errorf("failed to read edited file: %w", err)
 	}
@@ -214,7 +213,7 @@ func openEditor(initialMessage string) (string, error) {
 // commitWithMessage commits the changes with the given message
 func commitWithMessage(message string) error {
 	// Create a temporary file for the commit message
-	tmpFile, err := ioutil.TempFile("", "commit-msg-*.txt")
+	tmpFile, err := os.CreateTemp("", "commit-msg-*.txt")
 	if err != nil {
 		return fmt.Errorf("failed to create temp commit file: %w", err)
 	}
