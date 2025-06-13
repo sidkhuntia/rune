@@ -8,7 +8,7 @@ import (
 
 const (
 	// MaxSubjectLength is the maximum recommended length for commit subject lines
-	MaxSubjectLength = 50
+	MaxSubjectLength = 72
 	// MaxBodyLineLength is the maximum recommended length for commit body lines
 	MaxBodyLineLength = 72
 )
@@ -57,7 +57,7 @@ func FormatCommitMessage(rawMessage string) (*Message, error) {
 	}
 
 	// Format the subject line
-	subject = formatSubject(subject)
+	subject = formatSubject(&subject)
 
 	var body string
 	if len(lines) > 1 {
@@ -88,32 +88,30 @@ func FormatCommitMessage(rawMessage string) (*Message, error) {
 	}, nil
 }
 
-// FIXME: Fix me, I need to pass the string as a reference.
 // formatSubject formats the subject line according to conventions
-func formatSubject(subject string) string {
+func formatSubject(subject *string) string {
 	// Trim whitespace
-	subject = strings.TrimSpace(subject)
+	*subject = strings.TrimSpace(*subject)
 
 	// Remove trailing period if present
-	if strings.HasSuffix(subject, ".") {
-		subject = strings.TrimSuffix(subject, ".")
+	if strings.HasSuffix(*subject, ".") {
+		*subject = strings.TrimSuffix(*subject, ".")
 	}
 
-	// FIXME: Before converting Rune to subject, I should first check if the first letter is capitalized. 
+	// Before converting Rune to subject, I should first check if the first letter is capitalized. 
 	// If it is not, I should convert it to uppercase.
-	// Ensure first letter is capitalized
-	if len(subject) > 0 {
-		runes := []rune(subject)
+	if len(*subject) > 0 && unicode.IsLower([]rune(*subject)[0]) {
+		runes := []rune(*subject)
 		runes[0] = unicode.ToUpper(runes[0])
-		subject = string(runes)
+		*subject = string(runes)
 	}
 
 	// Truncate if too long
-	if len(subject) > MaxSubjectLength {
-		subject = subject[:MaxSubjectLength-3] + "..."
+	if len(*subject) > MaxSubjectLength {
+		*subject = (*subject)[:MaxSubjectLength-3] + "..."
 	}
 
-	return subject
+	return *subject
 }
 
 // formatBody formats the body text with proper line wrapping
