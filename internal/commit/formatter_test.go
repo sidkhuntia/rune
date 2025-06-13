@@ -370,7 +370,7 @@ func TestFormatSubject(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatSubject(tt.input)
+			result := formatSubject(&tt.input)
 			if result != tt.expected {
 				t.Errorf("formatSubject(%q) = %q, want %q", tt.input, result, tt.expected)
 			}

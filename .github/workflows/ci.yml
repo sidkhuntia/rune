@@ -101,12 +101,12 @@ jobs:
         if [ "$GOOS" = "windows" ]; then
           EXT=".exe"
         fi
-        go build -ldflags="-s -w" -o "dist/gafu-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/commitmsg
+        go build -ldflags="-s -w" -o "dist/rune-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/commitmsg
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: gafu-${{ matrix.goos }}-${{ matrix.goarch }}
+        name: rune-${{ matrix.goos }}-${{ matrix.goarch }}
         path: dist/
 
   release:
@@ -133,7 +133,7 @@ jobs:
         cd dist
         for dir in */; do
           cd "$dir"
-          tar -czf "../gafu-${dir%/}.tar.gz" *
+          tar -czf "../rune-${dir%/}.tar.gz" *
           cd ..
         done
         ls -la
@@ -155,9 +155,9 @@ jobs:
     - name: Update Homebrew formula
       uses: mislav/bump-homebrew-formula-action@v3
       with:
-        formula-name: gafu
-        formula-path: Formula/gafu.rb
-        homebrew-tap: yourusername/homebrew-gafu
+        formula-name: rune
+        formula-path: Formula/rune.rb
+        homebrew-tap: yourusername/homebrew-rune
         base-branch: main
         download-url: https://github.com/${{ github.repository }}/archive/${{ github.event.release.tag_name }}.tar.gz
       env:

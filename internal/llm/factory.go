@@ -3,7 +3,7 @@ package llm
 import (
 	"fmt"
 
-	"github.com/siddhartha/commitgen/internal/config"
+	"github.com/siddhartha/rune/internal/config"
 )
 
 // NewLLMClient creates a new LLM client based on the configuration

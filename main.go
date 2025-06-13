@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/siddhartha/commitgen/cmd/commitmsg"
+	"github.com/siddhartha/rune/cmd/rune"
 )
 
 func main() {
-	commitmsg.Execute()
+	rune.Execute()
 }

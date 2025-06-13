@@ -1,6 +1,6 @@
-# Gafu 🚀
+# Rune 🚀
 
-**Gafu** is an AI-powered CLI tool that generates descriptive Git commit messages by analyzing your code changes. It supports multiple AI providers including Novita.ai (Qwen models) and Google Gemini Flash.
+**Rune** is an AI-powered CLI tool that generates descriptive Git commit messages by analyzing your code changes. It supports multiple AI providers including Novita.ai (Qwen models) and Google Gemini Flash.
 
 ## Features
 
@@ -9,23 +9,23 @@
 - **Configurable**: Interactive setup with personalized preferences
 - **Editor Integration**: Edit generated messages before committing
 - **GitHub Conventions**: Follows GitHub commit message best practices
-- 🚀 **Smart Staging**: Configurable staging behavior for your workflow
-- 🔧 **Flexible**: Supports dry-run, verbose output, and custom models
+- **Smart Staging**: Configurable staging behavior for your workflow
+- **Flexible**: Supports dry-run, verbose output, and custom models
 
 ## Installation
 
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/gafu.git
-cd gafu
-go build -o gafu ./cmd/commitmsg
+git clone https://github.com/yourusername/rune.git
+cd rune
+go build -o rune ./cmd/rune
 ```
 
 ### Using Go Install
 
 ```bash
-go install github.com/yourusername/gafu/cmd/commitmsg@latest
+go install github.com/yourusername/rune/cmd/rune@latest
 ```
 
 ## Setup
@@ -35,7 +35,7 @@ go install github.com/yourusername/gafu/cmd/commitmsg@latest
 Run the interactive setup:
 
 ```bash
-gafu --setup
+rune --setup
 ```
 
 This will guide you through:
@@ -43,7 +43,7 @@ This will guide you through:
 1. **AI Provider Selection**: Choose between Novita.ai or Google Gemini Flash
 2. **API Key Configuration**: Set your API key for the chosen provider
 3. **Model Selection**: Choose the AI model to use
-4. **Staging Preferences**: Configure how Gafu handles file staging
+4. **Staging Preferences**: Configure how Rune handles file staging
 
 ### API Keys
 
@@ -65,63 +65,63 @@ This will guide you through:
 Generate and commit a message for staged changes:
 
 ```bash
-gafu
+rune
 ```
 
 ### Options
 
 ```bash
 # Include all changes (not just staged)
-gafu --all
+rune --all
 
 # Generate without committing (dry run)
-gafu --dry-run
+rune --dry-run
 
 # Use a specific model
-gafu --model qwen/qwen2.5-7b-instruct
+rune --model qwen/qwen2.5-7b-instruct
 
 # Skip editor (auto-commit)
-gafu --edit=false
+rune --edit=false
 
 # Verbose output
-gafu --verbose
+rune --verbose
 
 # Reconfigure settings
-gafu --setup
+rune --setup
 ```
 
 ### Staging Behavior
 
-Gafu offers flexible staging options configured during setup:
+Rune offers flexible staging options configured during setup:
 
 1. **Staged Only**: Only commit already staged changes
 2. **Auto-Stage All**: Automatically stage all changes before committing
 
-When using `--all` flag, Gafu will warn you if it needs to stage additional changes.
+When using `--all` flag, Rune will warn you if it needs to stage additional changes.
 
 ### Examples
 
 ```bash
 # Basic workflow
 git add .
-gafu
+rune
 
 # Include unstaged changes
-gafu --all
+rune --all
 
 # Preview generated message
-gafu --dry-run
+rune --dry-run
 
 # Use different model temporarily
-gafu --model gemini-1.5-flash
+rune --model gemini-1.5-flash
 
 # Verbose output with editing
-gafu --verbose --edit
+rune --verbose --edit
 ```
 
 ## Configuration
 
-Configuration is stored in `~/.config/gafu/config.json`:
+Configuration is stored in `~/.config/rune/config.json`:
 
 ```json
 {
@@ -143,7 +143,7 @@ Configuration is stored in `~/.config/gafu/config.json`:
 
 ## Commit Message Format
 
-Gafu follows GitHub commit message conventions:
+Rune follows GitHub commit message conventions:
 
 - **Subject line**: ≤50 characters, capitalized, no trailing period
 - **Body**: Wrapped at 72 characters, separated by blank line
@@ -166,7 +166,7 @@ proper error responses for unauthorized access attempts.
 - Stage your changes with `git add` or use `--all` flag
 
 **"API key not found"**
-- Run `gafu --setup` to configure your API key
+- Run `rune --setup` to configure your API key
 - Or set environment variable: `export NOVITA_API_KEY=your-key`
 
 **"Model not found"**
@@ -182,7 +182,7 @@ proper error responses for unauthorized access attempts.
 Use verbose flag for detailed output:
 
 ```bash
-gafu --verbose --dry-run
+rune --verbose --dry-run
 ```
 
 ## Contributing
@@ -191,7 +191,7 @@ gafu --verbose --dry-run
 2. Create a feature branch: `git checkout -b feature-name`
 3. Make your changes
 4. Add tests if applicable
-5. Commit using Gafu: `gafu`
+5. Commit using Rune: `rune`
 6. Push and create a Pull Request
 
 ## License

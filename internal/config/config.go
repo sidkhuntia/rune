@@ -93,7 +93,7 @@ func (c *Config) Save() error {
 func InteractiveSetup() (*Config, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("🚀 Welcome to Gafu!")
+	fmt.Println("🚀 Welcome to Rune!")
 	fmt.Println("Let's set up your AI provider for generating commit messages.")
 
 	// Choose provider
