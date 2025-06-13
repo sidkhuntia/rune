@@ -1,7 +1,6 @@
 package git
 
 import (
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,35 +10,57 @@ import (
 
 func TestExtractDiff(t *testing.T) {
 	// Create a temporary git repository for testing
-	tempDir, err := ioutil.TempDir("", "commitgen-test")
+	tempDir, err := os.MkdirTemp("", "commitgen-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Logf("Failed to remove temp dir: %v", err)
+		}
+	}()
 
 	// Change to temp directory
 	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
-	os.Chdir(tempDir)
+	defer func() {
+		if err := os.Chdir(originalDir); err != nil {
+			t.Logf("Failed to restore working dir: %v", err)
+		}
+	}()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("Failed to change to temp dir: %v", err)
+	}
 
 	// Initialize git repo
-	exec.Command("git", "init").Run()
-	exec.Command("git", "config", "user.email", "test@example.com").Run()
-	exec.Command("git", "config", "user.name", "Test User").Run()
+	if err := exec.Command("git", "init").Run(); err != nil {
+		t.Fatalf("Failed to init git repo: %v", err)
+	}
+	if err := exec.Command("git", "config", "user.email", "test@example.com").Run(); err != nil {
+		t.Fatalf("Failed to set git user.email: %v", err)
+	}
+	if err := exec.Command("git", "config", "user.name", "Test User").Run(); err != nil {
+		t.Fatalf("Failed to set git user.name: %v", err)
+	}
 
 	// Create initial commit
-	ioutil.WriteFile("main.go", []byte(`package main
+	if err := os.WriteFile("main.go", []byte(`package main
 
 func main() {
     // TODO: implement
 }
-`), 0644)
-	exec.Command("git", "add", "main.go").Run()
-	exec.Command("git", "commit", "-m", "Initial commit").Run()
+`), 0644); err != nil {
+		t.Fatalf("Failed to write main.go: %v", err)
+	}
+	if err := exec.Command("git", "add", "main.go").Run(); err != nil {
+		t.Fatalf("Failed to add main.go: %v", err)
+	}
+	if err := exec.Command("git", "commit", "-m", "Initial commit").Run(); err != nil {
+		t.Fatalf("Failed to commit main.go: %v", err)
+	}
 
 	t.Run("staged changes", func(t *testing.T) {
 		// Modify file and stage changes
-		ioutil.WriteFile("main.go", []byte(`package main
+		if err := os.WriteFile("main.go", []byte(`package main
 
 import "fmt"
 
@@ -47,8 +68,12 @@ func main() {
     fmt.Println("Hello, CommitGen!")
     // Added implementation
 }
-`), 0644)
-		exec.Command("git", "add", "main.go").Run()
+`), 0644); err != nil {
+			t.Fatalf("Failed to write main.go: %v", err)
+		}
+		if err := exec.Command("git", "add", "main.go").Run(); err != nil {
+			t.Fatalf("Failed to add main.go: %v", err)
+		}
 
 		// Test ExtractDiff with staged=true
 		diff, err := ExtractDiff(true)
@@ -66,7 +91,9 @@ func main() {
 
 	t.Run("no staged changes", func(t *testing.T) {
 		// Reset to clean state
-		exec.Command("git", "reset", "--hard", "HEAD").Run()
+		if err := exec.Command("git", "reset", "--hard", "HEAD").Run(); err != nil {
+			t.Fatalf("Failed to reset git repo: %v", err)
+		}
 
 		// Test ExtractDiff with no staged changes
 		_, err := ExtractDiff(true)
@@ -80,12 +107,20 @@ func main() {
 
 	t.Run("all changes including unstaged", func(t *testing.T) {
 		// Create and add a file, then modify it to create unstaged changes
-		ioutil.WriteFile("README.md", []byte("# CommitGen\n"), 0644)
-		exec.Command("git", "add", "README.md").Run()
-		exec.Command("git", "commit", "-m", "Add README").Run()
+		if err := os.WriteFile("README.md", []byte("# CommitGen\n"), 0644); err != nil {
+			t.Fatalf("Failed to write README.md: %v", err)
+		}
+		if err := exec.Command("git", "add", "README.md").Run(); err != nil {
+			t.Fatalf("Failed to add README.md: %v", err)
+		}
+		if err := exec.Command("git", "commit", "-m", "Add README").Run(); err != nil {
+			t.Fatalf("Failed to commit README.md: %v", err)
+		}
 
 		// Now modify the file to create unstaged changes
-		ioutil.WriteFile("README.md", []byte("# CommitGen\n\nA CLI tool for generating commit messages using AI.\n"), 0644)
+		if err := os.WriteFile("README.md", []byte("# CommitGen\n\nA CLI tool for generating commit messages using AI.\n"), 0644); err != nil {
+			t.Fatalf("Failed to modify README.md: %v", err)
+		}
 
 		// Test ExtractDiff with staged=false
 		diff, err := ExtractDiff(false)
@@ -105,7 +140,7 @@ func main() {
 func TestExtractDiffWithSampleData(t *testing.T) {
 	// This test verifies that our sample diff file is valid
 	sampleDiffPath := filepath.Join("..", "..", "testdata", "sample.diff")
-	content, err := ioutil.ReadFile(sampleDiffPath)
+	content, err := os.ReadFile(sampleDiffPath)
 	if err != nil {
 		t.Errorf("Failed to read sample diff file: %v", err)
 		return

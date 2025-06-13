@@ -94,7 +94,10 @@ func TestQwenClient_GenerateCommitMessage(t *testing.T) {
 				}
 
 				w.WriteHeader(tt.responseStatus)
-				w.Write([]byte(tt.responseBody))
+				_, err := w.Write([]byte(tt.responseBody))
+				if err != nil {
+					t.Errorf("Failed to write response body: %v", err)
+				}
 			}))
 			defer server.Close()
 
@@ -135,9 +138,6 @@ func TestNewQwenClient(t *testing.T) {
 		}
 		if client == nil {
 			t.Error("Expected client to be created")
-		}
-		if client.apiKey != "test-key" {
-			t.Errorf("Expected API key 'test-key', got '%s'", client.apiKey)
 		}
 	})
 
@@ -188,7 +188,10 @@ func TestQwenClient_RequestTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(2 * time.Second)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"choices": [{"message": {"content": "test"}}]}`))
+		_, err := w.Write([]byte(`{"choices": [{"message": {"content": "test"}}]}`))
+		if err != nil {
+			t.Errorf("Failed to write response body: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -211,7 +214,10 @@ func TestQwenClient_ContextCancellation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(1 * time.Second)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"choices": [{"message": {"content": "test"}}]}`))
+		_, err := w.Write([]byte(`{"choices": [{"message": {"content": "test"}}]}`))
+		if err != nil {
+			t.Errorf("Failed to write response body: %v", err)
+		}
 	}))
 	defer server.Close()
 

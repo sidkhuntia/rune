@@ -33,8 +33,8 @@ func TestFormatCommitMessage(t *testing.T) {
 		},
 		{
 			name:        "long subject gets truncated",
-			input:       "this is a very long commit subject line that exceeds the fifty character limit and should be truncated",
-			wantSubject: "This is a very long commit subject line that ex...",
+			input:       "this is a very long commit subject line that exceeds the seventy-two character limit and should be truncated",
+			wantSubject: "This is a very long commit subject line that exceeds the seventy-two ...",
 			wantBody:    "",
 		},
 		{
@@ -218,7 +218,7 @@ func TestValidateMessage(t *testing.T) {
 		},
 		{
 			name:      "subject too long",
-			message:   &Message{Subject: strings.Repeat("a", 51)},
+			message:   &Message{Subject: strings.Repeat("a", 73)},
 			wantError: "subject line too long",
 		},
 		{
@@ -348,8 +348,8 @@ func TestFormatSubject(t *testing.T) {
 		},
 		{
 			name:     "truncate long subject",
-			input:    "This is a very long commit subject that exceeds fifty characters",
-			expected: "This is a very long commit subject that exceeds...",
+			input:    "This is a very long commit subject that exceeds seventy-two characters",
+			expected: "This is a very long commit subject that exceeds seventy-two characters",
 		},
 		{
 			name:     "whitespace handling",

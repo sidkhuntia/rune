@@ -58,6 +58,21 @@ func init() {
 
 // generateCommitMessage is the main function that orchestrates the commit message generation
 func generateCommitMessage(cmd *cobra.Command, args []string) error {
+
+	// check if the current directory is a git repository
+	if !isGitRepository() {
+		return fmt.Errorf("not a git repository")
+	}
+
+	// go to the root of the git repository
+	rootDir, err := getGitRootDir()
+	if err != nil {
+		return fmt.Errorf("failed to get git root directory: %w", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		return fmt.Errorf("failed to change to git root directory: %w", err)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -175,14 +190,15 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		fmt.Println("4. Quit (unstage any files staged by this tool)")
 		fmt.Print("Enter your choice (1-4): ")
 		var choice string
-		fmt.Scanln(&choice)
+		if _, err := fmt.Scanln(&choice); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to read input: %v\n", err)
+		}
 
 		switch choice {
 		case "1":
 			continue // re-generate
 		case "2":
 			finalMessage = message.Format()
-			break
 		case "3":
 			editedMessage, err := openEditor(message.Format())
 			if err != nil {
@@ -193,7 +209,6 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 				continue
 			}
 			finalMessage = editedMessage
-			break
 		case "4":
 			if len(stagedByTool) > 0 {
 				fmt.Println("Unstaging files staged by this tool...")
@@ -224,13 +239,19 @@ func openEditor(initialMessage string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to remove temp file: %v\n", err)
+		}
+	}()
 
 	// Write the initial message to the temp file
 	if _, err := tmpFile.WriteString(initialMessage); err != nil {
 		return "", fmt.Errorf("failed to write to temp file: %w", err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		return "", fmt.Errorf("failed to close temp file: %w", err)
+	}
 
 	// Get the editor from environment or use default
 	editor := os.Getenv("EDITOR")
@@ -264,13 +285,19 @@ func commitWithMessage(message string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp commit file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to remove temp file: %v\n", err)
+		}
+	}()
 
 	// Write the message to the temp file
 	if _, err := tmpFile.WriteString(message); err != nil {
 		return fmt.Errorf("failed to write commit message: %w", err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp commit file: %w", err)
+	}
 
 	// Execute git commit
 	cmd := exec.Command("git", "commit", "-F", tmpFile.Name())

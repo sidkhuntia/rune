@@ -101,7 +101,11 @@ func (c *QwenClient) GenerateCommitMessage(ctx context.Context, diff string) (st
 	if err != nil {
 		return "", fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close response body: %v\n", err)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
