@@ -141,30 +141,30 @@ func InteractiveSetup() (*Config, error) {
 		return nil, fmt.Errorf("API key cannot be empty")
 	}
 
-	// Ask about staging preference
-	fmt.Print("\nDo you want to commit only staged changes by default? (y/n): ")
-	stagingChoice, err := reader.ReadString('\n')
+	// Ask about commit scope preference (mutually exclusive)
+	fmt.Println("\nHow do you want to generate commit messages by default?")
+	fmt.Println("1. Only for staged changes (recommended for precise commits)")
+	fmt.Println("2. For all tracked changes (stages everything before committing)")
+	fmt.Print("Enter your choice (1 or 2): ")
+	commitScopeChoice, err := reader.ReadString('\n')
 	if err != nil {
-		return nil, fmt.Errorf("failed to read staging preference: %w", err)
+		return nil, fmt.Errorf("failed to read commit scope preference: %w", err)
 	}
-	stagingChoice = strings.ToLower(strings.TrimSpace(stagingChoice))
+	commitScopeChoice = strings.TrimSpace(commitScopeChoice)
 
-	stagedOnly := stagingChoice == "y" || stagingChoice == "yes"
+	stagedOnly := true
 	autoStageAll := false
 
-	if !stagedOnly {
-		fmt.Print("Should we automatically stage all changes before committing? (y/n): ")
-		autoStageChoice, err := reader.ReadString('\n')
-		if err != nil {
-			return nil, fmt.Errorf("failed to read auto-stage preference: %w", err)
-		}
-		autoStageChoice = strings.ToLower(strings.TrimSpace(autoStageChoice))
-		autoStageAll = autoStageChoice == "y" || autoStageChoice == "yes"
-
-		if autoStageAll {
-			fmt.Println("\n⚠️  Warning: When using --all flag or when no staged changes are found,")
-			fmt.Println("   the tool will automatically stage all changes and then commit them.")
-		}
+	switch commitScopeChoice {
+	case "1":
+		stagedOnly = true
+		autoStageAll = false
+	case "2":
+		stagedOnly = false
+		autoStageAll = true
+		fmt.Println("\n⚠️  All tracked changes will be staged and included in every commit by default.")
+	default:
+		return nil, fmt.Errorf("invalid choice: %s", commitScopeChoice)
 	}
 
 	config := &Config{

@@ -33,3 +33,28 @@ func ExtractDiff(staged bool) (string, error) {
 
 	return diff, nil
 }
+
+// ListStagedFiles returns a slice of file paths that are currently staged for commit.
+func ListStagedFiles() ([]string, error) {
+	cmd := exec.Command("git", "diff", "--cached", "--name-only")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list staged files: %w", err)
+	}
+	files := strings.Fields(string(output))
+	return files, nil
+}
+
+// UnstageFiles unstages the given files from the index (staging area).
+func UnstageFiles(files []string) error {
+	if len(files) == 0 {
+		return nil
+	}
+	args := append([]string{"reset", "HEAD", "--"}, files...)
+	cmd := exec.Command("git", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to unstage files: %w\nOutput: %s", err, string(output))
+	}
+	return nil
+}

@@ -99,6 +99,9 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	// Determine what changes to include based on config and flags
 	includeAll := allFlag || !cfg.StagedOnly
 
+	// Track files staged by the tool (for possible unstage on quit)
+	var stagedByTool []string
+
 	// If we're including all changes and config allows auto-staging
 	if includeAll && cfg.AutoStageAll {
 		// Check if there are any staged changes
@@ -112,6 +115,8 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 					return fmt.Errorf("failed to stage changes: %w", err)
 				}
 				fmt.Println("✅ All changes staged successfully")
+				// Track what we just staged
+				stagedByTool, _ = git.ListStagedFiles()
 			}
 		}
 	}
@@ -132,73 +137,75 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize LLM client: %w", err)
 	}
 
-	if verboseFlag {
-		fmt.Println("🤖 Generating commit message...")
-	}
-
-	// Generate the commit message
-	rawMessage, err := client.GenerateCommitMessage(ctx, diff)
-	if err != nil {
-		return fmt.Errorf("failed to generate commit message: %w", err)
-	}
-
-	if verboseFlag {
-		fmt.Println("📝 Formatting commit message...")
-	}
-
-	// Format the commit message
-	message, err := commit.FormatCommitMessage(rawMessage)
-	if err != nil {
-		return fmt.Errorf("failed to format commit message: %w", err)
-	}
-
-	// Validate the message
-	if err := commit.ValidateMessage(message); err != nil {
-		fmt.Printf("⚠️  Warning: %v\n", err)
-	}
-
-	if verboseFlag {
-		fmt.Println("✅ Generated commit message:")
-		fmt.Println(strings.Repeat("-", 50))
-		fmt.Println(message.Format())
-		fmt.Println(strings.Repeat("-", 50))
-	}
-
-	// Handle dry run
-	if dryRunFlag {
-		fmt.Println("Generated commit message:")
-		fmt.Println(message.Format())
-		return nil
-	}
-
-	// Edit the message if requested
-	finalMessage := message.Format()
-	if editFlag {
-		editedMessage, err := openEditor(finalMessage)
+	var finalMessage string
+	for {
+		if verboseFlag {
+			fmt.Println("🤖 Generating commit message...")
+		}
+		// Generate the commit message
+		rawMessage, err := client.GenerateCommitMessage(ctx, diff)
 		if err != nil {
-			return fmt.Errorf("failed to open editor: %w", err)
+			return fmt.Errorf("failed to generate commit message: %w", err)
 		}
 
-		// Check if user actually made changes or just quit
-		if strings.TrimSpace(editedMessage) == "" || editedMessage == finalMessage {
-			fmt.Println("📝 No changes made to commit message. Generating a new one...")
-			// Generate a new message
-			rawMessage, err := client.GenerateCommitMessage(ctx, diff)
-			if err != nil {
-				return fmt.Errorf("failed to generate new commit message: %w", err)
-			}
+		if verboseFlag {
+			fmt.Println("📝 Formatting commit message...")
+		}
+		// Format the commit message
+		message, err := commit.FormatCommitMessage(rawMessage)
+		if err != nil {
+			return fmt.Errorf("failed to format commit message: %w", err)
+		}
 
-			newMessage, err := commit.FormatCommitMessage(rawMessage)
-			if err != nil {
-				return fmt.Errorf("failed to format new commit message: %w", err)
-			}
+		// Validate the message
+		if err := commit.ValidateMessage(message); err != nil {
+			fmt.Printf("⚠️  Warning: %v\n", err)
+		}
 
-			finalMessage = newMessage.Format()
-			fmt.Println("✨ Generated new commit message:")
-			fmt.Println(finalMessage)
-		} else {
+		fmt.Println("\nGenerated commit message:")
+		fmt.Println(strings.Repeat("-", 50))
+		fmt.Println(message.Format())
+		fmt.Println(strings.Repeat("-", 50))
+
+		// Interactive panel
+		fmt.Println("What would you like to do?")
+		fmt.Println("1. Re-generate commit message")
+		fmt.Println("2. Commit as-is")
+		fmt.Println("3. Edit and commit")
+		fmt.Println("4. Quit (unstage any files staged by this tool)")
+		fmt.Print("Enter your choice (1-4): ")
+		var choice string
+		fmt.Scanln(&choice)
+
+		switch choice {
+		case "1":
+			continue // re-generate
+		case "2":
+			finalMessage = message.Format()
+			break
+		case "3":
+			editedMessage, err := openEditor(message.Format())
+			if err != nil {
+				return fmt.Errorf("failed to open editor: %w", err)
+			}
+			if strings.TrimSpace(editedMessage) == "" {
+				fmt.Println("📝 No changes made. Returning to options.")
+				continue
+			}
 			finalMessage = editedMessage
+			break
+		case "4":
+			if len(stagedByTool) > 0 {
+				fmt.Println("Unstaging files staged by this tool...")
+				_ = git.UnstageFiles(stagedByTool)
+			}
+			fmt.Println("Aborted. No commit was made.")
+			return nil
+		default:
+			fmt.Println("Invalid choice. Please enter 1, 2, 3, or 4.")
+			continue
 		}
+		break
 	}
 
 	// Commit with the final message
