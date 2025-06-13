@@ -17,7 +17,7 @@
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/rune.git
+git clone https://github.com/sidkhuntia/rune.git
 cd rune
 go build -o rune ./cmd/rune
 ```
@@ -25,7 +25,7 @@ go build -o rune ./cmd/rune
 ### Using Go Install
 
 ```bash
-go install github.com/yourusername/rune/cmd/rune@latest
+go install github.com/sidkhuntia/rune/cmd/rune@latest
 ```
 
 ## Setup
@@ -113,7 +113,7 @@ rune --all
 rune --dry-run
 
 # Use different model temporarily
-rune --model gemini-1.5-flash
+rune --model gemini-2.0-flash
 
 # Verbose output with editing
 rune --verbose --edit
