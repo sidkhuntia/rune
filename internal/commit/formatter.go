@@ -43,7 +43,10 @@ func FormatCommitMessage(rawMessage string) (*Message, error) {
 		return nil, fmt.Errorf("empty commit message")
 	}
 
-	lines := strings.Split(strings.TrimSpace(rawMessage), "\n")
+	// Clean the raw message - remove code blocks and fix formatting
+	cleanedMessage := cleanMessage(rawMessage)
+
+	lines := strings.Split(strings.TrimSpace(cleanedMessage), "\n")
 	if len(lines) == 0 {
 		return nil, fmt.Errorf("empty commit message")
 	}
@@ -85,6 +88,7 @@ func FormatCommitMessage(rawMessage string) (*Message, error) {
 	}, nil
 }
 
+// FIXME: Fix me, I need to pass the string as a reference.
 // formatSubject formats the subject line according to conventions
 func formatSubject(subject string) string {
 	// Trim whitespace
@@ -95,6 +99,8 @@ func formatSubject(subject string) string {
 		subject = strings.TrimSuffix(subject, ".")
 	}
 
+	// FIXME: Before converting Rune to subject, I should first check if the first letter is capitalized. 
+	// If it is not, I should convert it to uppercase.
 	// Ensure first letter is capitalized
 	if len(subject) > 0 {
 		runes := []rune(subject)
@@ -164,6 +170,35 @@ func wrapText(text string, maxLength int) string {
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// cleanMessage removes code blocks and fixes multiline formatting
+func cleanMessage(message string) string {
+	// Remove code block markers
+	message = strings.ReplaceAll(message, "```", "")
+
+	// Split into lines and process each, preserving paragraph structure
+	lines := strings.Split(message, "\n")
+	var result []string
+
+	for i, line := range lines {
+		cleaned := strings.TrimSpace(line)
+		if cleaned != "" {
+			result = append(result, cleaned)
+		} else if i > 0 && i < len(lines)-1 {
+			// Preserve empty lines between content (for paragraph separation)
+			if len(result) > 0 && result[len(result)-1] != "" {
+				result = append(result, "")
+			}
+		}
+	}
+
+	// Remove trailing empty lines
+	for len(result) > 0 && result[len(result)-1] == "" {
+		result = result[:len(result)-1]
+	}
+
+	return strings.Join(result, "\n")
 }
 
 // ValidateMessage validates a commit message against conventions

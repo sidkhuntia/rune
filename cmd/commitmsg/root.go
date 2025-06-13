@@ -96,8 +96,28 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		fmt.Println("🔍 Extracting git diff...")
 	}
 
+	// Determine what changes to include based on config and flags
+	includeAll := allFlag || !cfg.StagedOnly
+
+	// If we're including all changes and config allows auto-staging
+	if includeAll && cfg.AutoStageAll {
+		// Check if there are any staged changes
+		hasStagedChanges := hasGitChanges(true)
+		if !hasStagedChanges {
+			// No staged changes, check for unstaged changes
+			hasUnstagedChanges := hasGitChanges(false)
+			if hasUnstagedChanges {
+				fmt.Println("📦 No staged changes found. Staging all changes...")
+				if err := stageAllChanges(); err != nil {
+					return fmt.Errorf("failed to stage changes: %w", err)
+				}
+				fmt.Println("✅ All changes staged successfully")
+			}
+		}
+	}
+
 	// Extract the git diff
-	diff, err := git.ExtractDiff(!allFlag) // staged only by default, unless --all is specified
+	diff, err := git.ExtractDiff(true)
 	if err != nil {
 		return fmt.Errorf("failed to extract git diff: %w", err)
 	}
@@ -158,7 +178,27 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to open editor: %w", err)
 		}
-		finalMessage = editedMessage
+
+		// Check if user actually made changes or just quit
+		if strings.TrimSpace(editedMessage) == "" || editedMessage == finalMessage {
+			fmt.Println("📝 No changes made to commit message. Generating a new one...")
+			// Generate a new message
+			rawMessage, err := client.GenerateCommitMessage(ctx, diff)
+			if err != nil {
+				return fmt.Errorf("failed to generate new commit message: %w", err)
+			}
+
+			newMessage, err := commit.FormatCommitMessage(rawMessage)
+			if err != nil {
+				return fmt.Errorf("failed to format new commit message: %w", err)
+			}
+
+			finalMessage = newMessage.Format()
+			fmt.Println("✨ Generated new commit message:")
+			fmt.Println(finalMessage)
+		} else {
+			finalMessage = editedMessage
+		}
 	}
 
 	// Commit with the final message
@@ -262,4 +302,14 @@ func getGitRootDir() (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(output)), nil
+}
+
+// stageAllChanges stages all modified files
+func stageAllChanges() error {
+	cmd := exec.Command("git", "add", ".")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to stage changes: %w\nOutput: %s", err, string(output))
+	}
+	return nil
 }

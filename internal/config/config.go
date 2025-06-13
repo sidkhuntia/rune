@@ -12,9 +12,11 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Provider string `json:"provider"` // "novita" or "gemini"
-	APIKey   string `json:"api_key"`
-	Model    string `json:"model"`
+	Provider     string `json:"provider"` // "novita" or "gemini"
+	APIKey       string `json:"api_key"`
+	Model        string `json:"model"`
+	StagedOnly   bool   `json:"staged_only"`    // true for staged only, false for all changes
+	AutoStageAll bool   `json:"auto_stage_all"` // if true, automatically stage all changes when staged_only=false
 }
 
 // Provider constants
@@ -139,10 +141,38 @@ func InteractiveSetup() (*Config, error) {
 		return nil, fmt.Errorf("API key cannot be empty")
 	}
 
+	// Ask about staging preference
+	fmt.Print("\nDo you want to commit only staged changes by default? (y/n): ")
+	stagingChoice, err := reader.ReadString('\n')
+	if err != nil {
+		return nil, fmt.Errorf("failed to read staging preference: %w", err)
+	}
+	stagingChoice = strings.ToLower(strings.TrimSpace(stagingChoice))
+
+	stagedOnly := stagingChoice == "y" || stagingChoice == "yes"
+	autoStageAll := false
+
+	if !stagedOnly {
+		fmt.Print("Should we automatically stage all changes before committing? (y/n): ")
+		autoStageChoice, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("failed to read auto-stage preference: %w", err)
+		}
+		autoStageChoice = strings.ToLower(strings.TrimSpace(autoStageChoice))
+		autoStageAll = autoStageChoice == "y" || autoStageChoice == "yes"
+
+		if autoStageAll {
+			fmt.Println("\n⚠️  Warning: When using --all flag or when no staged changes are found,")
+			fmt.Println("   the tool will automatically stage all changes and then commit them.")
+		}
+	}
+
 	config := &Config{
-		Provider: provider,
-		APIKey:   apiKey,
-		Model:    model,
+		Provider:     provider,
+		APIKey:       apiKey,
+		Model:        model,
+		StagedOnly:   stagedOnly,
+		AutoStageAll: autoStageAll,
 	}
 
 	if err := config.Save(); err != nil {

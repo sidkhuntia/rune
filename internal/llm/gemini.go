@@ -13,8 +13,8 @@ import (
 
 const (
 	// Default Gemini API endpoint
-	defaultGeminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
-	defaultGeminiModel  = "gemini-1.5-flash"
+	defaultGeminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+	defaultGeminiModel  = "gemini-2.0-flash"
 )
 
 // GeminiClient implements the LLMClient interface for Google Gemini models
@@ -113,7 +113,7 @@ func (c *GeminiClient) GenerateCommitMessage(ctx context.Context, diff string) (
 		},
 		GenerationConfig: &GeminiGenerationConfig{
 			Temperature:     0.3,
-			MaxOutputTokens: 150,
+			MaxOutputTokens: 1000,
 		},
 	}
 
