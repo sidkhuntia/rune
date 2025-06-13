@@ -104,7 +104,7 @@ jobs:
         go build -ldflags="-s -w" -o "dist/rune-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/commitmsg
     
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: rune-${{ matrix.goos }}-${{ matrix.goarch }}
         path: dist/
@@ -124,7 +124,7 @@ jobs:
         go-version: 1.22
     
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: dist/
     
