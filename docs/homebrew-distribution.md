@@ -51,8 +51,8 @@ class Rune < Formula
   depends_on "go" => :build
 
   def install
-    system "go", "build", *std_go_args(ldflags: "-s -w"), "./cmd/commitmsg"
-    bin.install "commitmsg" => "rune"
+    system "go", "build", *std_go_args(ldflags: "-s -w"), "./cmd/rune"
+    bin.install "rune"
   end
 
   test do

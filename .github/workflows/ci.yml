@@ -101,7 +101,7 @@ jobs:
         if [ "$GOOS" = "windows" ]; then
           EXT=".exe"
         fi
-        go build -ldflags="-s -w" -o "dist/rune-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/commitmsg
+        go build -ldflags="-s -w" -o "dist/rune-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/rune
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

@@ -28,7 +28,7 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "commitmsg",
+	Use:   "rune",
 	Short: "Generate AI-powered Git commit messages",
 	Long: `CommitGen is a CLI tool that generates descriptive Git commit messages
 by analyzing staged diffs using Qwen AI models.
@@ -82,7 +82,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("setup failed: %w", err)
 		}
-		fmt.Println("Setup completed! You can now run commitmsg to generate commit messages.")
+		fmt.Println("Setup completed! You can now run rune to generate commit messages.")
 		return nil
 	}
 
