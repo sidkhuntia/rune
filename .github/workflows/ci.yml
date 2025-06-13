@@ -157,7 +157,7 @@ jobs:
       with:
         formula-name: rune
         formula-path: Formula/rune.rb
-        homebrew-tap: yourusername/homebrew-rune
+        homebrew-tap: sidkhuntia/homebrew-rune
         base-branch: main
         download-url: https://github.com/${{ github.repository }}/archive/${{ github.event.release.tag_name }}.tar.gz
       env:
