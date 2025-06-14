@@ -1,13 +1,10 @@
 name: CI/CD
-
 on:
   release:
     types: [ created ]
-
 permissions:
   contents: write
   packages: write
-
 jobs:
   test:
     name: Test
@@ -44,7 +41,6 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.out
-
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -61,7 +57,6 @@ jobs:
       uses: golangci/golangci-lint-action@v3
       with:
         version: latest
-
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -108,7 +103,6 @@ jobs:
       with:
         name: rune-${{ matrix.goos }}-${{ matrix.goarch }}
         path: dist/
-
   release:
     name: Release
     runs-on: ubuntu-latest
@@ -144,7 +138,6 @@ jobs:
         files: dist/*.tar.gz
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   homebrew:
     name: Update Homebrew Formula
     runs-on: ubuntu-latest
@@ -152,13 +145,62 @@ jobs:
     if: github.event_name == 'release'
     
     steps:
-    - name: Update Homebrew formula
-      uses: mislav/bump-homebrew-formula-action@v3
+    - uses: actions/checkout@v4
       with:
-        formula-name: rune
-        formula-path: Formula/rune.rb
-        homebrew-tap: sidkhuntia/homebrew-rune
-        base-branch: main
-        download-url: https://github.com/${{ github.repository }}/archive/${{ github.event.release.tag_name }}.tar.gz
-      env:
-        COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }} 
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Get release assets info
+      id: release_info
+      run: |
+        # Get SHA256 hashes from the uploaded release assets
+        ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/rune-darwin-arm64.tar.gz"
+        AMD64_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/rune-darwin-amd64.tar.gz"
+        
+        ARM64_SHA=$(curl -sL "$ARM64_URL" | shasum -a 256 | cut -d' ' -f1)
+        AMD64_SHA=$(curl -sL "$AMD64_URL" | shasum -a 256 | cut -d' ' -f1)
+        
+        echo "arm64_sha=$ARM64_SHA" >> $GITHUB_OUTPUT
+        echo "amd64_sha=$AMD64_SHA" >> $GITHUB_OUTPUT
+        echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+    
+    - name: Update Homebrew formula
+      run: |
+        VERSION="${{ steps.release_info.outputs.version }}"
+        ARM64_SHA="${{ steps.release_info.outputs.arm64_sha }}"
+        AMD64_SHA="${{ steps.release_info.outputs.amd64_sha }}"
+        
+        # Update the formula file
+        cat > Formula/rune.rb << EOF
+        class Rune < Formula
+          desc "AI-powered Git commit message generator"
+          homepage "https://github.com/sidkhuntia/rune"
+          version "${VERSION#v}"
+          license "MIT"
+
+          if OS.mac?
+            if Hardware::CPU.arm?
+              url "https://github.com/sidkhuntia/rune/releases/download/${VERSION}/rune-darwin-arm64.tar.gz"
+              sha256 "${ARM64_SHA}"
+            else
+              url "https://github.com/sidkhuntia/rune/releases/download/${VERSION}/rune-darwin-amd64.tar.gz"
+              sha256 "${AMD64_SHA}"
+            end
+          end
+
+          def install
+            bin.install "rune"
+          end
+
+          test do
+            assert_match "Generate AI-powered Git commit messages", shell_output("#{bin}/rune --help")
+          end
+        end
+        EOF
+        
+    - name: Commit updated formula
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add Formula/rune.rb
+        git commit -m "Update Homebrew formula to ${{ github.event.release.tag_name }}" || exit 0
+        git push
