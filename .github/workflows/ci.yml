@@ -101,7 +101,7 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: rune-${{ matrix.goos }}-${{ matrix.goarch }}
+        name: ${{ matrix.goos }}-${{ matrix.goarch }}
         path: dist/
   release:
     name: Release
