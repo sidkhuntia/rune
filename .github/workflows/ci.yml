@@ -148,6 +148,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.event.repository.default_branch }}
         
     - name: Get release assets info
       id: release_info
@@ -202,5 +203,9 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add Formula/rune.rb
-        git commit -m "Update Homebrew formula to ${{ github.event.release.tag_name }}" || exit 0
-        git push
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+          exit 0
+        fi
+        git commit -m "Update Homebrew formula to ${{ github.event.release.tag_name }}"
+        git push origin ${{ github.event.repository.default_branch }}
