@@ -1,4 +1,7 @@
-<img src="https://github.com/sidkhuntia/rune/blob/main/rune_icon.png" alt="Rune Logo" width="300" height="300" style="display: block; margin: 0 auto;">
+<p align="center">
+  <img src="https://github.com/sidkhuntia/rune/blob/main/rune_icon.png" alt="Rune Logo" width="200" height="200">
+</p>
+
 
 # Rune 🚀
 
