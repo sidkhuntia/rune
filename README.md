@@ -1,4 +1,5 @@
-<img src="https://github.com/sidkhuntia/rune/blob/main/rune_icon.png" alt="Rune Logo" width="100" height="100">
+<img src="https://github.com/sidkhuntia/rune/blob/main/rune_icon.png" alt="Rune Logo" width="300" height="300" style="display: block; margin: 0 auto;">
+
 # Rune 🚀
 
 **Rune** is an AI-powered CLI tool that generates descriptive Git commit messages by analyzing your code changes. It supports multiple AI providers including Novita.ai (Qwen models) and Google Gemini Flash.
