@@ -125,10 +125,10 @@ jobs:
     - name: Prepare release assets
       run: |
         cd dist
-        for dir in */; do
-          cd "$dir"
-          tar -czf "../rune-${dir%/}.tar.gz" *
-          cd ..
+        for file in rune-*; do
+          mv "$file" rune
+          tar -czf "${file}.tar.gz" rune
+          mv rune "$file"
         done
         ls -la
     
