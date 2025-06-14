@@ -184,10 +184,10 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
 		// Interactive panel
 		fmt.Println("What would you like to do?")
-		fmt.Println("1. Re-generate commit message")
-		fmt.Println("2. Commit as-is")
-		fmt.Println("3. Edit and commit")
-		fmt.Println("4. Quit (unstage any files staged by this tool)")
+		fmt.Println("1. 🔄 Re-generate commit message")
+		fmt.Println("2. ✅ Commit as-is")
+		fmt.Println("3. 📝 Edit and commit")
+		fmt.Println("4. 🚫 Quit (unstage any files staged by this tool)")
 		fmt.Print("Enter your choice (1-4): ")
 		var choice string
 		if _, err := fmt.Scanln(&choice); err != nil {
