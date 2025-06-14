@@ -10,7 +10,7 @@ import (
 
 func TestExtractDiff(t *testing.T) {
 	// Create a temporary git repository for testing
-	tempDir, err := os.MkdirTemp("", "commitgen-test")
+	tempDir, err := os.MkdirTemp("", "rune-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -65,7 +65,7 @@ func main() {
 import "fmt"
 
 func main() {
-    fmt.Println("Hello, CommitGen!")
+    fmt.Println("Hello, Rune!")
     // Added implementation
 }
 `), 0644); err != nil {
@@ -107,7 +107,7 @@ func main() {
 
 	t.Run("all changes including unstaged", func(t *testing.T) {
 		// Create and add a file, then modify it to create unstaged changes
-		if err := os.WriteFile("README.md", []byte("# CommitGen\n"), 0644); err != nil {
+		if err := os.WriteFile("README.md", []byte("# Rune\n"), 0644); err != nil {
 			t.Fatalf("Failed to write README.md: %v", err)
 		}
 		if err := exec.Command("git", "add", "README.md").Run(); err != nil {
@@ -118,7 +118,7 @@ func main() {
 		}
 
 		// Now modify the file to create unstaged changes
-		if err := os.WriteFile("README.md", []byte("# CommitGen\n\nA CLI tool for generating commit messages using AI.\n"), 0644); err != nil {
+		if err := os.WriteFile("README.md", []byte("# Rune\n\nA CLI tool for generating commit messages using AI.\n"), 0644); err != nil {
 			t.Fatalf("Failed to modify README.md: %v", err)
 		}
 

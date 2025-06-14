@@ -30,7 +30,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "rune",
 	Short: "Generate AI-powered Git commit messages",
-	Long: `CommitGen is a CLI tool that generates descriptive Git commit messages
+	Long: `Rune is a CLI tool that generates descriptive Git commit messages
 by analyzing staged diffs using Qwen AI models.
 
 The tool follows GitHub commit message conventions and allows you to edit
@@ -94,7 +94,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
 	// Run interactive setup if not configured
 	if cfg == nil || !config.IsConfigured() {
-		fmt.Println("🔧 CommitGen is not configured yet.")
+		fmt.Println("🔧 Rune is not configured yet.")
 		cfg, err = config.InteractiveSetup()
 		if err != nil {
 			return fmt.Errorf("setup failed: %w", err)

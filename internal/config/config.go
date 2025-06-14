@@ -37,7 +37,7 @@ func getConfigPath() (string, error) {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}
 
-	configDir := filepath.Join(homeDir, ".config", "commitgen")
+	configDir := filepath.Join(homeDir, ".config", "rune")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create config directory: %w", err)
 	}

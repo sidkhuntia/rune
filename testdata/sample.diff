@@ -9,7 +9,7 @@ index 1234567..abcdefg 100644
 +
  func main() {
 -    // TODO: implement
-+    fmt.Println("Hello, CommitGen!")
++    fmt.Println("Hello, Rune!")
 +    // Added implementation
  }
 diff --git a/README.md b/README.md
@@ -18,6 +18,6 @@ index 0000000..9876543
 --- /dev/null
 +++ b/README.md
 @@ -0,0 +1,3 @@
-+# CommitGen
++# Rune
 +
 +A CLI tool for generating commit messages using AI. 
