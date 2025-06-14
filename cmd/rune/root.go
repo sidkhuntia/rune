@@ -1,4 +1,4 @@
-package rune
+package main
 
 import (
 	"context"
