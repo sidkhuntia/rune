@@ -1,16 +1,16 @@
 class Rune < Formula
   desc "AI-powered Git commit message generator"
   homepage "https://github.com/sidkhuntia/rune"
-  version "1.0.2"
+  version "1.0.7"
   license "MIT"
 
   if OS.mac?
     if Hardware::CPU.arm?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.2/rune-darwin-arm64.tar.gz"
-      sha256 "sha256:79b87727dc06efedc00a62c9bbf941fd950778b0441c87ad650661849ee44495"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.7/rune-darwin-arm64.tar.gz"
+      sha256 "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
     else
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.2/rune-darwin-amd64.tar.gz"
-      sha256 "sha256:2cc1f35d1c65242e0096c79fec944c79c1927de29726fa3de76517cae9bfa568"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.7/rune-darwin-amd64.tar.gz"
+      sha256 "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
     end
   end
 
