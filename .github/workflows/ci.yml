@@ -1,10 +1,15 @@
 name: CI/CD
 on:
-  release:
-    types: [ created ]
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
 permissions:
   contents: write
   packages: write
+
 jobs:
   test:
     name: Test
@@ -15,6 +20,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
     
     - name: Set up Go
       uses: actions/setup-go@v4
@@ -41,6 +48,7 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.out
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -57,155 +65,30 @@ jobs:
       uses: golangci/golangci-lint-action@v3
       with:
         version: latest
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    needs: [test, lint]
-    
-    strategy:
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
-          - goos: windows
-            goarch: arm64
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: 1.22
-    
-    - name: Build binary
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-      run: |
-        mkdir -p dist
-        EXT=""
-        if [ "$GOOS" = "windows" ]; then
-          EXT=".exe"
-        fi
-        go build -ldflags="-s -w" -o "dist/rune-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}" ./cmd/rune
-    
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ matrix.goos }}-${{ matrix.goarch }}
-        path: dist/
+
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [test, lint, build]
-    if: github.event_name == 'release'
+    needs: [test, lint]
+    if: startsWith(github.ref, 'refs/tags/')
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        # Important: Use a PAT token for homebrew formula updates
+        token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
         go-version: 1.22
     
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
+    - name: Run GoReleaser
+      uses: goreleaser/goreleaser-action@v5
       with:
-        path: dist/
-    
-    - name: Prepare release assets
-      run: |
-        cd dist
-        for file in rune-*; do
-          mv "$file" rune
-          tar -czf "${file}.tar.gz" rune
-          mv rune "$file"
-        done
-        ls -la
-    
-    - name: Upload release assets
-      uses: softprops/action-gh-release@v2
-      with:
-        files: dist/*.tar.gz
+        distribution: goreleaser
+        version: latest
+        args: release --clean
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  homebrew:
-    name: Update Homebrew Formula
-    runs-on: ubuntu-latest
-    needs: [release]
-    if: github.event_name == 'release'
-    
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        ref: ${{ github.event.repository.default_branch }}
-        
-    - name: Get release assets info
-      id: release_info
-      run: |
-        # Get SHA256 hashes from the uploaded release assets
-        ARM64_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/rune-darwin-arm64.tar.gz"
-        AMD64_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/rune-darwin-amd64.tar.gz"
-        
-        ARM64_SHA=$(curl -sL "$ARM64_URL" | shasum -a 256 | cut -d' ' -f1)
-        AMD64_SHA=$(curl -sL "$AMD64_URL" | shasum -a 256 | cut -d' ' -f1)
-        
-        echo "arm64_sha=$ARM64_SHA" >> $GITHUB_OUTPUT
-        echo "amd64_sha=$AMD64_SHA" >> $GITHUB_OUTPUT
-        echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
-    
-    - name: Update Homebrew formula
-      run: |
-        VERSION="${{ steps.release_info.outputs.version }}"
-        ARM64_SHA="${{ steps.release_info.outputs.arm64_sha }}"
-        AMD64_SHA="${{ steps.release_info.outputs.amd64_sha }}"
-        
-        # Update the formula file
-        cat > Formula/rune.rb << EOF
-        class Rune < Formula
-          desc "AI-powered Git commit message generator"
-          homepage "https://github.com/sidkhuntia/rune"
-          version "${VERSION#v}"
-          license "MIT"
-
-          if OS.mac?
-            if Hardware::CPU.arm?
-              url "https://github.com/sidkhuntia/rune/releases/download/${VERSION}/rune-darwin-arm64.tar.gz"
-              sha256 "${ARM64_SHA}"
-            else
-              url "https://github.com/sidkhuntia/rune/releases/download/${VERSION}/rune-darwin-amd64.tar.gz"
-              sha256 "${AMD64_SHA}"
-            end
-          end
-
-          def install
-            bin.install "rune"
-          end
-
-          test do
-            assert_match "Generate AI-powered Git commit messages", shell_output("#{bin}/rune --help")
-          end
-        end
-        EOF
-        
-    - name: Commit updated formula
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add Formula/rune.rb
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
-          exit 0
-        fi
-        git commit -m "Update Homebrew formula to ${{ github.event.release.tag_name }}"
-        git push origin ${{ github.event.repository.default_branch }}

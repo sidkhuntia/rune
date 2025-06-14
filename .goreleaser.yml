@@ -1,0 +1,67 @@
+# .goreleaser.yml - place this in your repository root
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: rune
+    main: ./cmd/rune
+    binary: rune
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}amd64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+
+# Homebrew formula in the SAME repository
+brews:
+  - name: rune
+    # This creates the formula in YOUR repository, not a separate tap
+    repository:
+      owner: sidkhuntia
+      name: rune  # Your main repository name
+    # Specify the directory where the formula should be created
+    directory: Formula
+    homepage: https://github.com/sidkhuntia/rune
+    description: "AI-powered Git commit message generator"
+    license: MIT
+    test: |
+      system "#{bin}/rune --help"
+    install: |
+      bin.install "rune"
+    # This makes it work as a custom tap
+    custom_require: ""
+    custom_block: |
+      head "https://github.com/sidkhuntia/rune.git"
