@@ -14,6 +14,12 @@
 
 ## Installation
 
+### Using Homebrew
+
+```bash
+brew install sidkhuntia/rune/rune
+```
+
 ### From Source
 
 ```bash
