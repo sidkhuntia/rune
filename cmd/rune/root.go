@@ -59,8 +59,6 @@ func init() {
 // generateCommitMessage is the main function that orchestrates the commit message generation
 func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
-
-
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -121,21 +119,14 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
 	// If we're including all changes and config allows auto-staging
 	if includeAll && cfg.AutoStageAll {
-		// Check if there are any staged changes
-		hasStagedChanges := hasGitChanges(true)
-		if !hasStagedChanges {
-			// No staged changes, check for unstaged changes
-			hasUnstagedChanges := hasGitChanges(false)
-			if hasUnstagedChanges {
-				fmt.Println("📦 No staged changes found. Staging all changes...")
-				if err := stageAllChanges(); err != nil {
-					return fmt.Errorf("failed to stage changes: %w", err)
-				}
-				fmt.Println("✅ All changes staged successfully")
-				// Track what we just staged
-				stagedByTool, _ = git.ListStagedFiles()
-			}
+
+		if err := stageAllChanges(); err != nil {
+			return fmt.Errorf("failed to stage changes: %w", err)
 		}
+		fmt.Println("✅ All changes staged successfully")
+		// Track what we just staged
+		stagedByTool, _ = git.ListStagedFiles()
+
 	}
 
 	// Extract the git diff
