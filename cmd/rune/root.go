@@ -131,7 +131,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		if err := stageAllChanges(); err != nil {
 			return fmt.Errorf("failed to stage changes: %w", err)
 		}
-		fmt.Println("✅ All changes staged successfully")
+		
 		// Track what we just staged
 		toBeStagedFiles, err := git.ListStagedFiles()
 		totalStagedFiles = len(toBeStagedFiles)
@@ -143,6 +143,10 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 			if !slices.Contains(previousStagedFiles, file) {
 				stagedByTool = append(stagedByTool, file)
 			}
+		}
+
+		if len(stagedByTool) > 0 {
+			fmt.Println("✅ All changes staged successfully")
 		}
 	}
 
