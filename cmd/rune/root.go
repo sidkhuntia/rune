@@ -151,7 +151,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	}
 
 	if totalStagedFiles == 0 {
-		fmt.Println("No changes to commit")
+		fmt.Println("🚫 No changes to commit")
 		return nil
 	}
 
