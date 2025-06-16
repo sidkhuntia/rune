@@ -5,21 +5,21 @@
 class Rune < Formula
   desc "AI-powered Git commit message generator"
   homepage "https://github.com/sidkhuntia/rune"
-  version "1.0.14"
+  version "1.0.15"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.intel?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.14/rune-darwin-amd64.tar.gz"
-      sha256 "4f5fc29bfdf91b2cb7866622465b45c655f80e30a1ce0ea735c3396e5b4af72f"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.15/rune-darwin-amd64.tar.gz"
+      sha256 "cd1a5f332b165d3b7cbc3b159ae1634d46af16b7bcfc5d4c506bee45cb9d9763"
 
       def install
         bin.install "rune"
       end
     end
     if Hardware::CPU.arm?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.14/rune-darwin-arm64.tar.gz"
-      sha256 "be0b7930acc0fa2d07e417403b19ea9dfe3ed3f427c4c5cf3bec07e4b9fd26b7"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.15/rune-darwin-arm64.tar.gz"
+      sha256 "4ad7032e7e756dee14586256a5336103bc462e17066df1c448dc237f6f2aae4e"
 
       def install
         bin.install "rune"
@@ -29,15 +29,15 @@ class Rune < Formula
 
   on_linux do
     if Hardware::CPU.intel? and Hardware::CPU.is_64_bit?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.14/rune-linux-amd64.tar.gz"
-      sha256 "fa7ec662f673370e513df04476124e83d97eae90a180738a833cb8d6f7bf4766"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.15/rune-linux-amd64.tar.gz"
+      sha256 "d5af66dccf1c89c760696e0d437320fb89877cce31698bc07b1536c4a7cd9b1e"
       def install
         bin.install "rune"
       end
     end
     if Hardware::CPU.arm? and Hardware::CPU.is_64_bit?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.14/rune-linux-arm64.tar.gz"
-      sha256 "1640fbd9d7daf7f5375bf3807a7d6b2d06594121361cc0d0161800850d4f9a42"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.15/rune-linux-arm64.tar.gz"
+      sha256 "6507f05aa1d3eec764f9d52ef4bf90a3ee18ebef784ab794e5650fc32e136f5d"
       def install
         bin.install "rune"
       end
