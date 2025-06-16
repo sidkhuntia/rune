@@ -59,19 +59,7 @@ func init() {
 // generateCommitMessage is the main function that orchestrates the commit message generation
 func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
-	// check if the current directory is a git repository
-	if !isGitRepository() {
-		return fmt.Errorf("not a git repository")
-	}
 
-	// go to the root of the git repository
-	rootDir, err := getGitRootDir()
-	if err != nil {
-		return fmt.Errorf("failed to get git root directory: %w", err)
-	}
-	if err := os.Chdir(rootDir); err != nil {
-		return fmt.Errorf("failed to change to git root directory: %w", err)
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -99,6 +87,20 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("setup failed: %w", err)
 		}
+	}
+
+	// check if the current directory is a git repository
+	if !isGitRepository() {
+		return fmt.Errorf("not a git repository")
+	}
+
+	// go to the root of the git repository
+	rootDir, err := getGitRootDir()
+	if err != nil {
+		return fmt.Errorf("failed to get git root directory: %w", err)
+	}
+	if err := os.Chdir(rootDir); err != nil {
+		return fmt.Errorf("failed to change to git root directory: %w", err)
 	}
 
 	if verboseFlag {
