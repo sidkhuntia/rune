@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"time"
 
@@ -120,13 +121,26 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	// If we're including all changes and config allows auto-staging
 	if includeAll && cfg.AutoStageAll {
 
+		previousStagedFiles, err := git.ListStagedFiles()
+		if err != nil {
+			return fmt.Errorf("failed to list staged files: %w", err)
+		}
+
 		if err := stageAllChanges(); err != nil {
 			return fmt.Errorf("failed to stage changes: %w", err)
 		}
 		fmt.Println("✅ All changes staged successfully")
 		// Track what we just staged
-		stagedByTool, _ = git.ListStagedFiles()
+		toBeStagedFiles, err := git.ListStagedFiles()
+		if err != nil {
+			return fmt.Errorf("failed to list staged files: %w", err)
+		}
 
+		for _, file := range toBeStagedFiles {
+			if !slices.Contains(previousStagedFiles, file) {
+				stagedByTool = append(stagedByTool, file)
+			}
+		}
 	}
 
 	// Extract the git diff
@@ -307,19 +321,6 @@ func isGitRepository() bool {
 	return err == nil
 }
 
-// hasGitChanges checks if there are any changes to commit
-func hasGitChanges(staged bool) bool {
-	var cmd *exec.Cmd
-	if staged {
-		cmd = exec.Command("git", "diff", "--cached", "--quiet")
-	} else {
-		cmd = exec.Command("git", "diff", "--quiet")
-	}
-
-	err := cmd.Run()
-	// git diff --quiet returns non-zero exit code if there are changes
-	return err != nil
-}
 
 // getGitRootDir returns the root directory of the git repository
 func getGitRootDir() (string, error) {
