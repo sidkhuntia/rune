@@ -118,6 +118,8 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	// Track files staged by the tool (for possible unstage on quit)
 	var stagedByTool []string
 
+	totalStagedFiles := 0
+
 	// If we're including all changes and config allows auto-staging
 	if includeAll && cfg.AutoStageAll {
 
@@ -132,6 +134,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		fmt.Println("✅ All changes staged successfully")
 		// Track what we just staged
 		toBeStagedFiles, err := git.ListStagedFiles()
+		totalStagedFiles = len(toBeStagedFiles)
 		if err != nil {
 			return fmt.Errorf("failed to list staged files: %w", err)
 		}
@@ -141,6 +144,11 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 				stagedByTool = append(stagedByTool, file)
 			}
 		}
+	}
+
+	if totalStagedFiles == 0 {
+		fmt.Println("No changes to commit")
+		return nil
 	}
 
 	// Extract the git diff
