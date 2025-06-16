@@ -5,21 +5,21 @@
 class Rune < Formula
   desc "AI-powered Git commit message generator"
   homepage "https://github.com/sidkhuntia/rune"
-  version "1.0.15"
+  version "1.0.16"
   license "MIT"
 
   on_macos do
     if Hardware::CPU.intel?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.15/rune-darwin-amd64.tar.gz"
-      sha256 "cd1a5f332b165d3b7cbc3b159ae1634d46af16b7bcfc5d4c506bee45cb9d9763"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.16/rune-darwin-amd64.tar.gz"
+      sha256 "2f1345bf15d9b3dbed4989b291764f0db0a7ce737349d1c83023eca8f2bc1dfa"
 
       def install
         bin.install "rune"
       end
     end
     if Hardware::CPU.arm?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.15/rune-darwin-arm64.tar.gz"
-      sha256 "4ad7032e7e756dee14586256a5336103bc462e17066df1c448dc237f6f2aae4e"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.16/rune-darwin-arm64.tar.gz"
+      sha256 "0315add04b029fbc78986764877825072d2cdd743cfb917ce4545d939f341061"
 
       def install
         bin.install "rune"
@@ -29,15 +29,15 @@ class Rune < Formula
 
   on_linux do
     if Hardware::CPU.intel? and Hardware::CPU.is_64_bit?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.15/rune-linux-amd64.tar.gz"
-      sha256 "d5af66dccf1c89c760696e0d437320fb89877cce31698bc07b1536c4a7cd9b1e"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.16/rune-linux-amd64.tar.gz"
+      sha256 "058506bbd9a3eb85cf6fdbb98be412b8e7ca35338f929833569b40f7ced80b74"
       def install
         bin.install "rune"
       end
     end
     if Hardware::CPU.arm? and Hardware::CPU.is_64_bit?
-      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.15/rune-linux-arm64.tar.gz"
-      sha256 "6507f05aa1d3eec764f9d52ef4bf90a3ee18ebef784ab794e5650fc32e136f5d"
+      url "https://github.com/sidkhuntia/rune/releases/download/v1.0.16/rune-linux-arm64.tar.gz"
+      sha256 "c061591a74dcf30e9589482813bea9e4dadb3b3168885d28458e8fba600c4e04"
       def install
         bin.install "rune"
       end
