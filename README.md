@@ -217,3 +217,10 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - Configurable staging behavior
 - GitHub commit conventions
 - Editor integration and dry-run mode 
+
+## Roadmap
+
+- [ ] Add support for more AI providers
+- [ ] Store API keys in a secure way
+- [ ] Add TUI
+- [ ] Add support for selected files

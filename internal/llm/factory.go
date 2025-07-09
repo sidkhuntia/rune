@@ -22,6 +22,8 @@ func NewLLMClient(cfg *config.Config) (LLMClient, error) {
 		return NewQwenClient()
 	case config.ProviderGemini:
 		return NewGeminiClient()
+	case config.ProviderOpenRouter:
+		return NewOpenRouterClient(cfg.Model)
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", cfg.Provider)
 	}
@@ -34,6 +36,8 @@ func GetProviderDisplayName(provider string) string {
 		return "Novita AI (Qwen)"
 	case config.ProviderGemini:
 		return "Google Gemini Flash"
+	case config.ProviderOpenRouter:
+		return "OpenRouter (Multiple Models)"
 	default:
 		return "Unknown"
 	}

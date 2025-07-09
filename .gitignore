@@ -6,3 +6,6 @@ gafu
 /rune
 commitgen
 dist
+docs
+.claude
+docs/roadmap.md
