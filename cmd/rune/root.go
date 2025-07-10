@@ -14,6 +14,7 @@ import (
 	"github.com/siddhartha/rune/internal/config"
 	"github.com/siddhartha/rune/internal/git"
 	"github.com/siddhartha/rune/internal/llm"
+	"github.com/siddhartha/rune/internal/ui"
 )
 
 var (
@@ -42,6 +43,7 @@ the generated message before committing.`,
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
+		ui.HandleError(err)
 		os.Exit(1)
 	}
 }
@@ -65,7 +67,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("setup failed: %w", err)
 		}
-		fmt.Println("Setup completed! You can now run rune to generate commit messages.")
+		ui.Success("Setup completed! You can now run rune to generate commit messages.")
 		return nil
 	}
 
@@ -77,7 +79,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
 	// Run interactive setup if not configured
 	if cfg == nil || !config.IsConfigured() {
-		fmt.Println("🔧 Rune is not configured yet.")
+		ui.Info("Rune is not configured yet.")
 		cfg, err = config.InteractiveSetup()
 		if err != nil {
 			return fmt.Errorf("setup failed: %w", err)
@@ -128,7 +130,12 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
 	// If we're including all changes and config allows auto-staging
 	if includeAll && cfg.AutoStageAll {
+		spinner := ui.NewSpinner("Staging all changes...")
+		spinner.Start()
+		
 		stageResult, err := git.AtomicStageAll()
+		spinner.Stop()
+		
 		if err != nil {
 			return fmt.Errorf("failed to stage changes: %w", err)
 		}
@@ -137,7 +144,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		totalStagedFiles = len(stageResult.TotalStaged)
 
 		if len(stagedByTool) > 0 {
-			fmt.Println("✅ All changes staged successfully")
+			ui.Success("All changes staged successfully")
 		}
 	}
 
@@ -145,27 +152,32 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	defer func() {
 		if !commitSuccessful && len(stagedByTool) > 0 {
 			if verboseFlag {
-				fmt.Println("🧹 Cleaning up staged files...")
+				ui.Info("Cleaning up staged files...")
 			}
 			if unstageErr := git.UnstageFiles(stagedByTool); unstageErr != nil {
-				fmt.Fprintf(os.Stderr, "Warning: failed to cleanup staged files: %v\n", unstageErr)
+				ui.Warning(fmt.Sprintf("Failed to cleanup staged files: %v", unstageErr))
 			}
 		}
 	}()
 
 	if totalStagedFiles == 0 {
-		fmt.Println("🚫 No changes to commit")
+		ui.Info("No changes to commit")
 		return nil
 	}
 
 	// Extract the git diff
+	spinner := ui.NewSpinner("Analyzing changes...")
+	spinner.Start()
+	
 	diff, err := git.ExtractDiff(true)
+	spinner.Stop()
+	
 	if err != nil {
 		return fmt.Errorf("failed to extract git diff: %w", err)
 	}
 
 	if verboseFlag {
-		fmt.Printf("📄 Found %d characters of changes\n", len(diff))
+		ui.Info(fmt.Sprintf("Found %d characters of changes", len(diff)))
 	}
 
 	// Initialize the LLM client based on configuration
@@ -176,44 +188,36 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
 	var finalMessage string
 	for {
-		if verboseFlag {
-			fmt.Println("🤖 Generating commit message...")
-		}
+		spinner := ui.NewSpinner("Generating commit message...")
+		spinner.Start()
+		
 		// Generate the commit message
 		rawMessage, err := client.GenerateCommitMessage(ctx, diff)
+		spinner.UpdateMessage("Formatting commit message...")
+		
 		if err != nil {
+			spinner.Stop()
 			return fmt.Errorf("failed to generate commit message: %w", err)
 		}
 
-		if verboseFlag {
-			fmt.Println("📝 Formatting commit message...")
-		}
 		// Format the commit message
 		message, err := commit.FormatCommitMessage(rawMessage)
+		spinner.Stop()
+		
 		if err != nil {
 			return fmt.Errorf("failed to format commit message: %w", err)
 		}
 
 		// Validate the message
 		if err := commit.ValidateMessage(message); err != nil {
-			fmt.Printf("⚠️  Warning: %v\n", err)
+			ui.Warning(err.Error())
 		}
 
-		fmt.Println("\nGenerated commit message:")
-		fmt.Println(strings.Repeat("-", 50))
-		fmt.Println(message.Format())
-		fmt.Println(strings.Repeat("-", 50))
-
-		// Interactive panel
-		fmt.Println("What would you like to do?")
-		fmt.Println("1. 🔄 Re-generate commit message")
-		fmt.Println("2. ✅ Commit as-is")
-		fmt.Println("3. 📝 Edit and commit")
-		fmt.Println("4. 🚫 Quit (unstage any files staged by this tool)")
-		fmt.Print("Enter your choice (1-4): ")
+		ui.PreviewCommitMessage(message.Format())
+		ui.ShowCommitOptions()
 		var choice string
 		if _, err := fmt.Scanln(&choice); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to read input: %v\n", err)
+			ui.Warning(fmt.Sprintf("Failed to read input: %v", err))
 		}
 
 		switch choice {
@@ -227,15 +231,15 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("failed to open editor: %w", err)
 			}
 			if strings.TrimSpace(editedMessage) == "" {
-				fmt.Println("📝 No changes made. Returning to options.")
+				ui.Info("No changes made. Returning to options.")
 				continue
 			}
 			finalMessage = editedMessage
 		case "4":
-			fmt.Println("Aborted. No commit was made.")
+			ui.Info("Aborted. No commit was made.")
 			return nil // defer will handle cleanup
 		default:
-			fmt.Println("Invalid choice. Please enter 1, 2, 3, or 4.")
+			ui.Warning("Invalid choice. Please enter 1, 2, 3, or 4.")
 			continue
 		}
 		break
@@ -247,25 +251,28 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	}
 
 	commitSuccessful = true
-	fmt.Println("✅ Successfully committed changes!")
+	ui.Success("Successfully committed changes!")
 	return nil
 }
 
 // openEditor opens the user's preferred editor to edit the commit message
 func openEditor(initialMessage string) (string, error) {
-	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "commitmsg-*.txt")
+	// Create a temporary file with .gitcommit extension for syntax highlighting
+	tmpFile, err := os.CreateTemp("", "COMMIT_EDITMSG")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp file: %w", err)
 	}
 	defer func() {
 		if err := os.Remove(tmpFile.Name()); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to remove temp file: %v\n", err)
+			ui.Warning(fmt.Sprintf("Failed to remove temp file: %v", err))
 		}
 	}()
 
-	// Write the initial message to the temp file
-	if _, err := tmpFile.WriteString(initialMessage); err != nil {
+	// Create enhanced commit message template
+	template := buildCommitTemplate(initialMessage)
+	
+	// Write the template to the temp file
+	if _, err := tmpFile.WriteString(template); err != nil {
 		return "", fmt.Errorf("failed to write to temp file: %w", err)
 	}
 	if err := tmpFile.Close(); err != nil {
@@ -288,13 +295,13 @@ func openEditor(initialMessage string) (string, error) {
 		return "", fmt.Errorf("editor exited with error: %w", err)
 	}
 
-	// Read the edited content
+	// Read and clean the edited content
 	content, err := os.ReadFile(tmpFile.Name())
 	if err != nil {
 		return "", fmt.Errorf("failed to read edited file: %w", err)
 	}
 
-	return strings.TrimSpace(string(content)), nil
+	return cleanCommitMessage(string(content)), nil
 }
 
 // commitWithMessage commits the changes with the given message
@@ -306,7 +313,7 @@ func commitWithMessage(message string) error {
 	}
 	defer func() {
 		if err := os.Remove(tmpFile.Name()); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to remove temp file: %v\n", err)
+			ui.Warning(fmt.Sprintf("Failed to remove temp file: %v", err))
 		}
 	}()
 
@@ -342,5 +349,49 @@ func getGitRootDir() (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(string(output)), nil
+}
+
+// buildCommitTemplate creates an enhanced commit message template
+func buildCommitTemplate(initialMessage string) string {
+	template := initialMessage + "\n\n"
+	template += "# Please enter the commit message for your changes. Lines starting\n"
+	template += "# with '#' will be ignored, and an empty message aborts the commit.\n"
+	template += "#\n"
+	template += "# Conventional Commit Format:\n"
+	template += "# <type>[optional scope]: <description>\n"
+	template += "#\n"
+	template += "# [optional body]\n"
+	template += "#\n"
+	template += "# [optional footer(s)]\n"
+	template += "#\n"
+	template += "# Types: feat, fix, docs, style, refactor, test, chore\n"
+	template += "# Example: feat(auth): add OAuth2 login support\n"
+	template += "#\n"
+	template += "# Tips:\n"
+	template += "# - Use imperative mood (\"add\" not \"added\")\n"
+	template += "# - Keep the first line under 50 characters\n"
+	template += "# - Separate subject from body with a blank line\n"
+	template += "# - Wrap body at 72 characters\n"
+	
+	return template
+}
+
+// cleanCommitMessage removes comments and cleans up the commit message
+func cleanCommitMessage(content string) string {
+	lines := strings.Split(content, "\n")
+	var cleanLines []string
+	
+	for _, line := range lines {
+		// Remove comment lines (starting with #)
+		if !strings.HasPrefix(strings.TrimSpace(line), "#") {
+			cleanLines = append(cleanLines, line)
+		}
+	}
+	
+	// Join lines and trim
+	result := strings.Join(cleanLines, "\n")
+	result = strings.TrimSpace(result)
+	
+	return result
 }
 

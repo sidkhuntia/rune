@@ -150,8 +150,9 @@ func (c *Config) Save() error {
 func InteractiveSetup() (*Config, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("🚀 Welcome to Rune!")
-	fmt.Println("Let's set up your AI provider for generating commit messages.")
+	// Use UI package for better formatting
+	fmt.Printf("\n\033[1m\033[36m🚀 Welcome to Rune!\033[0m\033[0m\n")
+	fmt.Printf("\033[2mLet's set up your AI provider for generating commit messages.\033[0m\n\n")
 
 	// Choose provider
 	fmt.Println("Choose your AI provider:")

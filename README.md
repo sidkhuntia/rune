@@ -220,7 +220,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Roadmap
 
-- [ ] Add support for more AI providers
-- [ ] Store API keys in a secure way
+- [X] Add support for more AI providers
+- [X] Store API keys in a secure way
 - [ ] Add TUI
 - [ ] Add support for selected files
