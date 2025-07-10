@@ -4,7 +4,18 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 )
+
+// gitMutex ensures git operations are atomic
+var gitMutex sync.Mutex
+
+// WithGitLock executes a function with git operation lock
+func WithGitLock(fn func() error) error {
+	gitMutex.Lock()
+	defer gitMutex.Unlock()
+	return fn()
+}
 
 // ExtractDiff extracts the diff from git.
 // If staged is true, it returns the staged changes (--cached).
@@ -57,4 +68,61 @@ func UnstageFiles(files []string) error {
 		return fmt.Errorf("failed to unstage files: %w\nOutput: %s", err, string(output))
 	}
 	return nil
+}
+
+// AtomicStageResult represents the result of an atomic staging operation
+type AtomicStageResult struct {
+	PreviouslyStaged []string
+	NewlyStaged      []string
+	TotalStaged      []string
+}
+
+// AtomicStageAll performs atomic staging of all changes with proper locking
+func AtomicStageAll() (*AtomicStageResult, error) {
+	var result AtomicStageResult
+	
+	err := WithGitLock(func() error {
+		// Get current staged files
+		previousStaged, err := ListStagedFiles()
+		if err != nil {
+			return fmt.Errorf("failed to list previously staged files: %w", err)
+		}
+		result.PreviouslyStaged = previousStaged
+		
+		// Stage all changes
+		cmd := exec.Command("git", "add", ".")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed to stage changes: %w\nOutput: %s", err, string(output))
+		}
+		
+		// Get newly staged files
+		totalStaged, err := ListStagedFiles()
+		if err != nil {
+			return fmt.Errorf("failed to list total staged files: %w", err)
+		}
+		result.TotalStaged = totalStaged
+		
+		// Calculate newly staged files
+		for _, file := range totalStaged {
+			found := false
+			for _, prev := range previousStaged {
+				if file == prev {
+					found = true
+					break
+				}
+			}
+			if !found {
+				result.NewlyStaged = append(result.NewlyStaged, file)
+			}
+		}
+		
+		return nil
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	return &result, nil
 }

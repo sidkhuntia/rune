@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"slices"
 	"strings"
 	"time"
 
@@ -60,9 +59,6 @@ func init() {
 // generateCommitMessage is the main function that orchestrates the commit message generation
 func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
 	// Handle setup flag
 	if setupFlag {
 		_, err := config.InteractiveSetup()
@@ -87,6 +83,15 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("setup failed: %w", err)
 		}
 	}
+
+	// Use configurable timeout, default to 60 seconds
+	timeout := 60 * time.Second
+	if cfg.TimeoutSeconds > 0 {
+		timeout = time.Duration(cfg.TimeoutSeconds) * time.Second
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
 	// check if the current directory is a git repository
 	if !isGitRepository() {
@@ -117,38 +122,36 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
 	// Track files staged by the tool (for possible unstage on quit)
 	var stagedByTool []string
+	var commitSuccessful bool
 
 	totalStagedFiles := 0
 
 	// If we're including all changes and config allows auto-staging
 	if includeAll && cfg.AutoStageAll {
-
-		previousStagedFiles, err := git.ListStagedFiles()
+		stageResult, err := git.AtomicStageAll()
 		if err != nil {
-			return fmt.Errorf("failed to list staged files: %w", err)
-		}
-
-		if err := stageAllChanges(); err != nil {
 			return fmt.Errorf("failed to stage changes: %w", err)
 		}
 		
-		// Track what we just staged
-		toBeStagedFiles, err := git.ListStagedFiles()
-		totalStagedFiles = len(toBeStagedFiles)
-		if err != nil {
-			return fmt.Errorf("failed to list staged files: %w", err)
-		}
-
-		for _, file := range toBeStagedFiles {
-			if !slices.Contains(previousStagedFiles, file) {
-				stagedByTool = append(stagedByTool, file)
-			}
-		}
+		stagedByTool = stageResult.NewlyStaged
+		totalStagedFiles = len(stageResult.TotalStaged)
 
 		if len(stagedByTool) > 0 {
 			fmt.Println("✅ All changes staged successfully")
 		}
 	}
+
+	// Cleanup staged files if commit fails or user quits
+	defer func() {
+		if !commitSuccessful && len(stagedByTool) > 0 {
+			if verboseFlag {
+				fmt.Println("🧹 Cleaning up staged files...")
+			}
+			if unstageErr := git.UnstageFiles(stagedByTool); unstageErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to cleanup staged files: %v\n", unstageErr)
+			}
+		}
+	}()
 
 	if totalStagedFiles == 0 {
 		fmt.Println("🚫 No changes to commit")
@@ -229,12 +232,8 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 			}
 			finalMessage = editedMessage
 		case "4":
-			if len(stagedByTool) > 0 {
-				fmt.Println("Unstaging files staged by this tool...")
-				_ = git.UnstageFiles(stagedByTool)
-			}
 			fmt.Println("Aborted. No commit was made.")
-			return nil
+			return nil // defer will handle cleanup
 		default:
 			fmt.Println("Invalid choice. Please enter 1, 2, 3, or 4.")
 			continue
@@ -247,6 +246,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to commit: %w", err)
 	}
 
+	commitSuccessful = true
 	fmt.Println("✅ Successfully committed changes!")
 	return nil
 }
@@ -344,12 +344,3 @@ func getGitRootDir() (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// stageAllChanges stages all modified files
-func stageAllChanges() error {
-	cmd := exec.Command("git", "add", ".")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to stage changes: %w\nOutput: %s", err, string(output))
-	}
-	return nil
-}

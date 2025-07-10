@@ -7,15 +7,17 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/zalando/go-keyring"
 )
 
 // Config represents the application configuration
 type Config struct {
 	Provider     string `json:"provider"` // "novita" or "gemini"
-	APIKey       string `json:"api_key"`
 	Model        string `json:"model"`
 	StagedOnly   bool   `json:"staged_only"`    // true for staged only, false for all changes
 	AutoStageAll bool   `json:"auto_stage_all"` // if true, automatically stage all changes when staged_only=false
+	TimeoutSeconds int  `json:"timeout_seconds,omitempty"` // configurable timeout, defaults to 60
 }
 
 // Provider constants
@@ -230,10 +232,14 @@ func InteractiveSetup() (*Config, error) {
 
 	config := &Config{
 		Provider:     provider,
-		APIKey:       apiKey,
 		Model:        model,
 		StagedOnly:   stagedOnly,
 		AutoStageAll: autoStageAll,
+	}
+
+	// Store API key securely
+	if err := config.SetAPIKey(apiKey); err != nil {
+		return nil, fmt.Errorf("failed to store API key securely: %w", err)
 	}
 
 	if err := config.Save(); err != nil {
@@ -248,7 +254,13 @@ func InteractiveSetup() (*Config, error) {
 // IsConfigured checks if the application is already configured
 func IsConfigured() bool {
 	config, err := Load()
-	return err == nil && config != nil && config.Provider != "" && config.APIKey != ""
+	if err != nil || config == nil || config.Provider == "" {
+		return false
+	}
+	
+	// Check if API key exists in secure storage
+	_, err = config.GetAPIKey()
+	return err == nil
 }
 
 // GetEnvVarName returns the appropriate environment variable name for the provider
@@ -265,6 +277,43 @@ func (c *Config) GetEnvVarName() string {
 	}
 }
 
+// GetAPIKey retrieves the API key from secure storage
+func (c *Config) GetAPIKey() (string, error) {
+	service := "rune-cli"
+	user := c.Provider
+	
+	apiKey, err := keyring.Get(service, user)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve API key from secure storage: %w", err)
+	}
+	
+	return apiKey, nil
+}
+
+// SetAPIKey stores the API key in secure storage
+func (c *Config) SetAPIKey(apiKey string) error {
+	service := "rune-cli"
+	user := c.Provider
+	
+	if err := keyring.Set(service, user, apiKey); err != nil {
+		return fmt.Errorf("failed to store API key in secure storage: %w", err)
+	}
+	
+	return nil
+}
+
+// DeleteAPIKey removes the API key from secure storage
+func (c *Config) DeleteAPIKey() error {
+	service := "rune-cli"
+	user := c.Provider
+	
+	if err := keyring.Delete(service, user); err != nil {
+		return fmt.Errorf("failed to delete API key from secure storage: %w", err)
+	}
+	
+	return nil
+}
+
 // SetEnvVar sets the appropriate environment variable for the current session
 func (c *Config) SetEnvVar() error {
 	envVar := c.GetEnvVarName()
@@ -272,7 +321,12 @@ func (c *Config) SetEnvVar() error {
 		return fmt.Errorf("unknown provider: %s", c.Provider)
 	}
 
-	return os.Setenv(envVar, c.APIKey)
+	apiKey, err := c.GetAPIKey()
+	if err != nil {
+		return fmt.Errorf("failed to get API key: %w", err)
+	}
+
+	return os.Setenv(envVar, apiKey)
 }
 
 // setupOpenRouterModel allows user to select from available OpenRouter models
