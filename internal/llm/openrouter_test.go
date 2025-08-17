@@ -22,6 +22,7 @@ func TestNewOpenRouterClient(t *testing.T) {
 	}
 	if client == nil {
 		t.Error("Expected non-nil client")
+		return
 	}
 	if client.model != "deepseek/deepseek-chat" {
 		t.Errorf("Expected default model 'deepseek/deepseek-chat', got: %s", client.model)

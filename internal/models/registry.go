@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // ModelInfo represents information about a model
@@ -245,7 +248,7 @@ func FormatModelsHelp() string {
 			continue
 		}
 		
-		help.WriteString(fmt.Sprintf("\n  %s:\n", strings.Title(provider)))
+		help.WriteString(fmt.Sprintf("\n  %s:\n", cases.Title(language.English).String(provider)))
 		for _, model := range models {
 			defaultMarker := ""
 			if model.IsDefault {

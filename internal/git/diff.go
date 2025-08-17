@@ -27,9 +27,8 @@ func ExtractDiff(staged bool) (string, error) {
 		// Get only staged changes
 		cmd = exec.Command("git", "diff", "--cached")
 	} else {
-		// Get all changes (staged + unstaged + untracked)
-		// Use git status --porcelain to detect untracked files and git diff for tracked files
-		cmd = exec.Command("git", "diff")
+		// Get all changes (staged + unstaged) relative to HEAD
+		cmd = exec.Command("git", "diff", "HEAD")
 	}
 
 	output, err := cmd.Output()
