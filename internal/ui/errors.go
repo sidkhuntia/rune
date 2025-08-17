@@ -112,6 +112,33 @@ func TranslateError(err error) *UserError {
 		}
 	}
 	
+	// Model-related errors
+	if strings.Contains(errMsg, "model not found") {
+		return &UserError{
+			Title:       "Model not found",
+			Description: "The specified model is not available.",
+			Suggestions: []string{
+				"Run 'rune --list-models' to see available models",
+				"Use a model short name like 'deepseek' or 'qwen'",
+				"Check spelling of the model name",
+			},
+			TechnicalError: err,
+		}
+	}
+	
+	if strings.Contains(errMsg, "failed to resolve model") {
+		return &UserError{
+			Title:       "Invalid model",
+			Description: "Unable to use the specified model.",
+			Suggestions: []string{
+				"Run 'rune --list-models' to see available options",
+				"Verify the model name is correct",
+				"Try using a short name like 'deepseek' instead",
+			},
+			TechnicalError: err,
+		}
+	}
+
 	// Configuration errors
 	if strings.Contains(errMsg, "setup failed") || strings.Contains(errMsg, "failed to load config") {
 		return &UserError{

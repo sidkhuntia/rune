@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/zalando/go-keyring"
+	"github.com/siddhartha/rune/internal/models"
 )
 
 // Config represents the application configuration
@@ -22,71 +23,16 @@ type Config struct {
 
 // Provider constants
 const (
-	ProviderNovita    = "novita"
 	ProviderGemini    = "gemini"
 	ProviderOpenRouter = "openrouter"
 )
 
 // Default models for each provider
 var DefaultModels = map[string]string{
-	ProviderNovita:    "qwen/qwen2.5-7b-instruct",
-	ProviderGemini:    "gemini-1.5-flash",
+	ProviderGemini:     "gemini-2.0-flash-exp",
 	ProviderOpenRouter: "deepseek/deepseek-chat",
 }
 
-// OpenRouter model definitions with metadata
-type ModelInfo struct {
-	ID           string
-	Name         string
-	Company      string
-	ContextWindow int
-	Description  string
-}
-
-var OpenRouterModels = map[string]ModelInfo{
-	"deepseek/deepseek-chat": {
-		ID:           "deepseek/deepseek-chat",
-		Name:         "DeepSeek V3",
-		Company:      "DeepSeek",
-		ContextWindow: 163840,
-		Description:  "Large context window, excellent code understanding",
-	},
-	"qwen/qwen-3-32b": {
-		ID:           "qwen/qwen-3-32b",
-		Name:         "Qwen 3 32B",
-		Company:      "Alibaba",
-		ContextWindow: 40960,
-		Description:  "Excellent code comprehension, fast inference",
-	},
-	"mistral/mistral-small-3.2-24b": {
-		ID:           "mistral/mistral-small-3.2-24b",
-		Name:         "Mistral Small 3.2 24B",
-		Company:      "Mistral AI",
-		ContextWindow: 96000,
-		Description:  "Fast inference, good code understanding",
-	},
-	"qwen/qwen-2.5-coder-32b": {
-		ID:           "qwen/qwen-2.5-coder-32b",
-		Name:         "Qwen 2.5 Coder 32B",
-		Company:      "Alibaba",
-		ContextWindow: 128000,
-		Description:  "Specialized for code-related tasks",
-	},
-	"google/gemma-3-27b": {
-		ID:           "google/gemma-3-27b",
-		Name:         "Google Gemma 3 27B",
-		Company:      "Google",
-		ContextWindow: 96000,
-		Description:  "Well-rounded performance, good general use",
-	},
-	"google/gemini-2.0-flash-exp:free": {
-		ID:           "google/gemini-2.0-flash-exp:free",
-		Name:         "Google Gemini 2.0 Flash Exp (Free)",
-		Company:      "Google",
-		ContextWindow: 1000000,
-		Description:  "Free tier, experimental model with large context",
-	},
-}
 
 // getConfigPath returns the path to the configuration file
 func getConfigPath() (string, error) {
@@ -156,10 +102,9 @@ func InteractiveSetup() (*Config, error) {
 
 	// Choose provider
 	fmt.Println("Choose your AI provider:")
-	fmt.Println("1. Novita AI (Qwen models) - https://novita.ai/")
-	fmt.Println("2. Google Gemini Flash")
-	fmt.Println("3. OpenRouter (Multiple models) - https://openrouter.ai/")
-	fmt.Print("\nEnter your choice (1, 2, or 3): ")
+	fmt.Println("1. Google Gemini")
+	fmt.Println("2. OpenRouter (Multiple models) - https://openrouter.ai/")
+	fmt.Print("\nEnter your choice (1 or 2): ")
 
 	choice, err := reader.ReadString('\n')
 	if err != nil {
@@ -174,16 +119,11 @@ func InteractiveSetup() (*Config, error) {
 
 	switch choice {
 	case "1":
-		provider = ProviderNovita
-		model = DefaultModels[ProviderNovita]
-		apiKeyPrompt = "Please enter your Novita AI API key"
-		setupURL = "Get your API key at: https://novita.ai/settings/key-management"
-	case "2":
 		provider = ProviderGemini
 		model = DefaultModels[ProviderGemini]
 		apiKeyPrompt = "Please enter your Google Gemini API key"
 		setupURL = "Get your API key at: https://makersuite.google.com/app/apikey"
-	case "3":
+	case "2":
 		provider = ProviderOpenRouter
 		model = setupOpenRouterModel(reader)
 		apiKeyPrompt = "Please enter your OpenRouter API key"
@@ -267,8 +207,6 @@ func IsConfigured() bool {
 // GetEnvVarName returns the appropriate environment variable name for the provider
 func (c *Config) GetEnvVarName() string {
 	switch c.Provider {
-	case ProviderNovita:
-		return "NOVITA_API_KEY"
 	case ProviderGemini:
 		return "GEMINI_API_KEY"
 	case ProviderOpenRouter:
@@ -330,48 +268,149 @@ func (c *Config) SetEnvVar() error {
 	return os.Setenv(envVar, apiKey)
 }
 
+// ResolveModel resolves a model string to full model info and updates config if needed
+func (c *Config) ResolveModel(modelInput string) (*models.ModelInfo, error) {
+	if modelInput == "" {
+		// Use configured model
+		if c.Model == "" {
+			// Get default for current provider
+			return models.GetDefaultModel(c.Provider)
+		}
+		return models.FindModel(c.Model)
+	}
+	
+	// User specified a model
+	model, err := models.FindModel(modelInput)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Check if we need to switch providers
+	if model.Provider != c.Provider {
+		// We'll need API key for the new provider
+		return model, nil
+	}
+	
+	return model, nil
+}
+
+// SetDefaultModel sets the default model in config
+func (c *Config) SetDefaultModel(modelInput string) error {
+	model, err := models.FindModel(modelInput)
+	if err != nil {
+		return err
+	}
+	
+	c.Model = model.ID
+	c.Provider = model.Provider
+	
+	return c.Save()
+}
+
+// EnsureAPIKeyForProvider ensures API key exists for the given provider
+func (c *Config) EnsureAPIKeyForProvider(provider string) error {
+	// Temporarily switch provider to check API key
+	originalProvider := c.Provider
+	c.Provider = provider
+	
+	_, err := c.GetAPIKey()
+	if err != nil {
+		// API key doesn't exist, prompt user
+		fmt.Printf("\n🔑 API key required for %s\n", provider)
+		apiKey, err := c.promptForAPIKey(provider)
+		if err != nil {
+			c.Provider = originalProvider // restore
+			return err
+		}
+		
+		if err := c.SetAPIKey(apiKey); err != nil {
+			c.Provider = originalProvider // restore
+			return err
+		}
+	}
+	
+	// Don't restore provider - we want to keep the new one
+	return nil
+}
+
+// promptForAPIKey prompts user to enter API key for a provider
+func (c *Config) promptForAPIKey(provider string) (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	
+	var setupURL string
+	switch provider {
+	case ProviderGemini:
+		setupURL = "Get your API key at: https://makersuite.google.com/app/apikey"
+	case ProviderOpenRouter:
+		setupURL = "Get your API key at: https://openrouter.ai/keys"
+	default:
+		return "", fmt.Errorf("unknown provider: %s", provider)
+	}
+	
+	fmt.Printf("%s\n", setupURL)
+	fmt.Printf("Please enter your %s API key: ", provider)
+	
+	apiKey, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("failed to read API key: %w", err)
+	}
+	
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return "", fmt.Errorf("API key cannot be empty")
+	}
+	
+	return apiKey, nil
+}
+
 // setupOpenRouterModel allows user to select from available OpenRouter models
 func setupOpenRouterModel(reader *bufio.Reader) string {
 	fmt.Println("\nAvailable OpenRouter models:")
 	
-	models := []string{
-		"deepseek/deepseek-chat",
-		"qwen/qwen-3-32b",
-		"mistral/mistral-small-3.2-24b",
-		"qwen/qwen-2.5-coder-32b",
-		"google/gemma-3-27b",
-		"google/gemini-2.0-flash-exp:free",
+	openRouterModels := models.GetModelsByProvider("openrouter")
+	
+	for i, model := range openRouterModels {
+		fmt.Printf("%d. %s (%s) - %dk context - %s\n", 
+			i+1, model.Name, model.Company, model.ContextSize/1000, model.Description)
 	}
 	
-	for i, modelID := range models {
-		if info, exists := OpenRouterModels[modelID]; exists {
-			fmt.Printf("%d. %s (%s) - %dk context - %s\n", 
-				i+1, info.Name, info.Company, info.ContextWindow/1000, info.Description)
-		}
-	}
-	
-	fmt.Print("\nEnter your choice (1-6): ")
+	fmt.Printf("\nEnter your choice (1-%d): ", len(openRouterModels))
 	modelChoice, err := reader.ReadString('\n')
 	if err != nil {
 		return DefaultModels[ProviderOpenRouter] // fallback to default
 	}
 	
 	modelChoice = strings.TrimSpace(modelChoice)
-	switch modelChoice {
+	
+	// Parse choice
+	if choice := parseInt(modelChoice); choice > 0 && choice <= len(openRouterModels) {
+		return openRouterModels[choice-1].ID
+	}
+	
+	fmt.Printf("Invalid choice, using default: %s\n", DefaultModels[ProviderOpenRouter])
+	return DefaultModels[ProviderOpenRouter]
+}
+
+// parseInt safely parses an integer string
+func parseInt(s string) int {
+	if s == "" {
+		return 0
+	}
+	
+	switch s {
 	case "1":
-		return "deepseek/deepseek-chat"
+		return 1
 	case "2":
-		return "qwen/qwen-3-32b"
+		return 2
 	case "3":
-		return "mistral/mistral-small-3.2-24b"
+		return 3
 	case "4":
-		return "qwen/qwen-2.5-coder-32b"
+		return 4
 	case "5":
-		return "google/gemma-3-27b"
+		return 5
 	case "6":
-		return "google/gemini-2.0-flash-exp:free"
+		return 6
 	default:
-		fmt.Printf("Invalid choice, using default: %s\n", DefaultModels[ProviderOpenRouter])
-		return DefaultModels[ProviderOpenRouter]
+		return 0
 	}
 }

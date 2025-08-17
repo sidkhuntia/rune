@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	// Default Gemini API endpoint
-	defaultGeminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-	defaultGeminiModel  = "gemini-2.0-flash"
+	// Gemini API base URL (model will be appended)
+	geminiAPIBaseURL   = "https://generativelanguage.googleapis.com/v1beta/models"
+	defaultGeminiModel = "gemini-2.0-flash-exp"
 )
 
 // GeminiClient implements the LLMClient interface for Google Gemini models
@@ -60,29 +60,41 @@ type GeminiCandidate struct {
 }
 
 // NewGeminiClient creates a new GeminiClient with the API key from environment
-func NewGeminiClient() (*GeminiClient, error) {
+func NewGeminiClient(model string) (*GeminiClient, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		return nil, fmt.Errorf("GEMINI_API_KEY environment variable is required")
 	}
 
+	if model == "" {
+		model = defaultGeminiModel
+	}
+
+	// Build the full URL with the model
+	baseURL := fmt.Sprintf("%s/%s:generateContent", geminiAPIBaseURL, model)
+
+
+
 	return &GeminiClient{
 		apiKey:  apiKey,
-		baseURL: defaultGeminiAPIURL,
-		model:   defaultGeminiModel,
+		baseURL: baseURL,
+		model:   model,
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
 		},
 	}, nil
+
 }
 
 // NewGeminiClientWithConfig creates a new GeminiClient with custom configuration
 func NewGeminiClientWithConfig(apiKey, baseURL, model string) *GeminiClient {
-	if baseURL == "" {
-		baseURL = defaultGeminiAPIURL
-	}
 	if model == "" {
+	
 		model = defaultGeminiModel
+	}
+
+	if baseURL == "" {
+		baseURL = fmt.Sprintf("%s/%s:generateContent", geminiAPIBaseURL, model)
 	}
 
 	return &GeminiClient{

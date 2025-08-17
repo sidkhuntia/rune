@@ -18,10 +18,8 @@ func NewLLMClient(cfg *config.Config) (LLMClient, error) {
 	}
 
 	switch cfg.Provider {
-	case config.ProviderNovita:
-		return NewQwenClient()
 	case config.ProviderGemini:
-		return NewGeminiClient()
+		return NewGeminiClient(cfg.Model)
 	case config.ProviderOpenRouter:
 		return NewOpenRouterClient(cfg.Model)
 	default:
@@ -32,12 +30,10 @@ func NewLLMClient(cfg *config.Config) (LLMClient, error) {
 // GetProviderDisplayName returns a human-readable name for the provider
 func GetProviderDisplayName(provider string) string {
 	switch provider {
-	case config.ProviderNovita:
-		return "Novita AI (Qwen)"
 	case config.ProviderGemini:
-		return "Google Gemini Flash"
+		return "Google Gemini"
 	case config.ProviderOpenRouter:
-		return "OpenRouter (Multiple Models)"
+		return "OpenRouter"
 	default:
 		return "Unknown"
 	}

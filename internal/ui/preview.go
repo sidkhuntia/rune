@@ -26,7 +26,7 @@ func PreviewCommitMessage(message string) {
 
 	// Header
 	fmt.Printf("\n%s┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓%s\n", ColorBold, ColorReset)
-	fmt.Printf("%s┃%s                    %sGenerated Commit Message%s                    %s┃%s\n", ColorBold, ColorReset, ColorCyan+ColorBold, ColorReset, ColorBold, ColorReset)
+	fmt.Printf("%s┃%s                    %sGenerated Commit Message%s                  %s┃%s\n", ColorBold, ColorReset, ColorCyan+ColorBold, ColorReset, ColorBold, ColorReset)
 	fmt.Printf("%s┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛%s\n", ColorBold, ColorReset)
 
 	// Subject line (first line)

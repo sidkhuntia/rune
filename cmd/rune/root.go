@@ -14,17 +14,20 @@ import (
 	"github.com/siddhartha/rune/internal/config"
 	"github.com/siddhartha/rune/internal/git"
 	"github.com/siddhartha/rune/internal/llm"
+	"github.com/siddhartha/rune/internal/models"
 	"github.com/siddhartha/rune/internal/ui"
 )
 
 var (
 	// Command line flags
-	editFlag    bool
-	allFlag     bool
-	modelFlag   string
-	dryRunFlag  bool
-	verboseFlag bool
-	setupFlag   bool
+	editFlag           bool
+	allFlag            bool
+	modelFlag          string
+	setDefaultFlag     string
+	listModelsFlag     bool
+	dryRunFlag         bool
+	verboseFlag        bool
+	setupFlag          bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -32,10 +35,10 @@ var rootCmd = &cobra.Command{
 	Use:   "rune",
 	Short: "Generate AI-powered Git commit messages",
 	Long: `Rune is a CLI tool that generates descriptive Git commit messages
-by analyzing staged diffs using Qwen AI models.
+by analyzing staged diffs using AI models.
 
 The tool follows GitHub commit message conventions and allows you to edit
-the generated message before committing.`,
+the generated message before committing.` + models.FormatModelsHelp(),
 	RunE: generateCommitMessage,
 }
 
@@ -52,7 +55,9 @@ func init() {
 	// Define flags
 	rootCmd.Flags().BoolVarP(&editFlag, "edit", "e", true, "Open editor to edit the generated commit message")
 	rootCmd.Flags().BoolVarP(&allFlag, "all", "a", false, "Include unstaged changes in addition to staged changes")
-	rootCmd.Flags().StringVarP(&modelFlag, "model", "m", "", "Override the configured model")
+	rootCmd.Flags().StringVarP(&modelFlag, "model", "m", "", "Use specific model (short name or full ID)")
+	rootCmd.Flags().StringVar(&setDefaultFlag, "set-default-model", "", "Set default model for future use")
+	rootCmd.Flags().BoolVar(&listModelsFlag, "list-models", false, "List all available models and exit")
 	rootCmd.Flags().BoolVar(&dryRunFlag, "dry-run", false, "Generate commit message without actually committing")
 	rootCmd.Flags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output")
 	rootCmd.Flags().BoolVar(&setupFlag, "setup", false, "Run interactive setup to configure AI provider")
@@ -60,6 +65,12 @@ func init() {
 
 // generateCommitMessage is the main function that orchestrates the commit message generation
 func generateCommitMessage(cmd *cobra.Command, args []string) error {
+
+	// Handle list-models flag
+	if listModelsFlag {
+		printAllModels()
+		return nil
+	}
 
 	// Handle setup flag
 	if setupFlag {
@@ -69,6 +80,11 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		}
 		ui.Success("Setup completed! You can now run rune to generate commit messages.")
 		return nil
+	}
+
+	// Handle set-default-model flag
+	if setDefaultFlag != "" {
+		return handleSetDefaultModel(setDefaultFlag)
 	}
 
 	// Load configuration
@@ -109,14 +125,28 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to change to git root directory: %w", err)
 	}
 
+	// Resolve model (this may require switching providers)
+	selectedModel, err := cfg.ResolveModel(modelFlag)
+	if err != nil {
+		return fmt.Errorf("failed to resolve model: %w", err)
+	}
+
+	// Check if we need to switch providers
+	if selectedModel.Provider != cfg.Provider {
+		ui.Info(fmt.Sprintf("Switching to %s provider for model %s", selectedModel.Provider, selectedModel.Name))
+		
+		// Ensure API key exists for the new provider
+		if err := cfg.EnsureAPIKeyForProvider(selectedModel.Provider); err != nil {
+			return fmt.Errorf("failed to setup provider %s: %w", selectedModel.Provider, err)
+		}
+		
+		// Update config temporarily (don't save unless user wants to set as default)
+		cfg.Provider = selectedModel.Provider
+	}
+
 	if verboseFlag {
 		providerName := llm.GetProviderDisplayName(cfg.Provider)
-		model := cfg.Model
-		if modelFlag != "" {
-			model = modelFlag
-		}
-		fmt.Printf("🤖 Using %s with model %s\n", providerName, model)
-		fmt.Println("🔍 Extracting git diff...")
+		ui.Info(fmt.Sprintf("Using %s with model %s", providerName, selectedModel.Name))
 	}
 
 	// Determine what changes to include based on config and flags
@@ -180,7 +210,8 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		ui.Info(fmt.Sprintf("Found %d characters of changes", len(diff)))
 	}
 
-	// Initialize the LLM client based on configuration
+	// Initialize the LLM client with selected model
+	cfg.Model = selectedModel.ID // Update model for client creation
 	client, err := llm.NewLLMClient(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to initialize LLM client: %w", err)
@@ -393,5 +424,75 @@ func cleanCommitMessage(content string) string {
 	result = strings.TrimSpace(result)
 	
 	return result
+}
+
+// printAllModels prints all available models in a formatted table
+func printAllModels() {
+	allModels := models.GetAllModels()
+	
+	fmt.Printf("\n%sAvailable Models:%s\n", "\033[1m", "\033[0m")
+	fmt.Printf("%-15s %-25s %-12s %-15s %s\n", "SHORT NAME", "MODEL NAME", "PROVIDER", "COMPANY", "DESCRIPTION")
+	fmt.Printf("%s\n", strings.Repeat("-", 100))
+	
+	for _, model := range allModels {
+		defaultMarker := ""
+		if model.IsDefault {
+			defaultMarker = " *"
+		}
+		
+		fmt.Printf("%-15s %-25s %-12s %-15s %s%s\n", 
+			model.ShortName, 
+			model.Name, 
+			model.Provider, 
+			model.Company, 
+			model.Description,
+			defaultMarker)
+	}
+	
+	fmt.Printf("\n%sUsage:%s\n", "\033[1m", "\033[0m")
+	fmt.Printf("  rune --model <short-name>   # Use short name\n")
+	fmt.Printf("  rune --model <full-id>      # Use full model ID\n")
+	fmt.Printf("  rune --set-default-model <model>  # Set as default\n")
+	fmt.Printf("\n%sExamples:%s\n", "\033[1m", "\033[0m")
+	fmt.Printf("  rune --model d         # DeepSeek (1 char!)\n")
+	fmt.Printf("  rune --model g         # Gemini 2.0\n")
+	fmt.Printf("  rune --model q         # Qwen\n")
+	fmt.Printf("  rune --model deep      # DeepSeek (full name)\n")
+	fmt.Printf("  rune --set-default-model m    # Set Mistral as default\n")
+	fmt.Printf("\n* = Default model for provider\n")
+}
+
+// handleSetDefaultModel handles the --set-default-model flag
+func handleSetDefaultModel(modelInput string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+	
+	if cfg == nil {
+		ui.Info("No configuration found. Run 'rune --setup' first.")
+		return nil
+	}
+	
+	model, err := models.FindModel(modelInput)
+	if err != nil {
+		return fmt.Errorf("model not found: %w", err)
+	}
+	
+	// Check if we need API key for this provider
+	if model.Provider != cfg.Provider {
+		ui.Info(fmt.Sprintf("Model %s requires %s provider", model.Name, model.Provider))
+		if err := cfg.EnsureAPIKeyForProvider(model.Provider); err != nil {
+			return fmt.Errorf("failed to setup provider %s: %w", model.Provider, err)
+		}
+	}
+	
+	// Set as default
+	if err := cfg.SetDefaultModel(modelInput); err != nil {
+		return fmt.Errorf("failed to set default model: %w", err)
+	}
+	
+	ui.Success(fmt.Sprintf("Default model set to %s (%s)", model.Name, model.Provider))
+	return nil
 }
 

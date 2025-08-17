@@ -152,6 +152,15 @@ Configuration is stored in `~/.config/rune/config.json`:
 #### Google Gemini
 - `gemini-2.0-flash` (default)
 
+#### OpenRouter (Free Tier Models)
+- `deepseek/deepseek-v3` - DeepSeek V3 - 163,840 tokens
+- `deepseek/r1-0528` - DeepSeek R1 0528 - 163,840 tokens
+- `google/gemini-2.0-flash-exp:free` - Gemini 2.0 Flash Experimental - 1,048,576 tokens
+- `qwen/qwen2.5-coder-32b-instruct` - Qwen2.5 Coder 32B Instruct - 128,000 tokens
+- `mistral/mistral-small-3.2-24b` - Mistral Small 3.2 24B - 96,000 tokens
+- `google/gemma-3-27b` - Gemma 3 27B - 96,000 tokens
+- `qwen/qwen3-32b` - Qwen3 32B - 40,960 tokens
+
 ## Commit Message Format
 
 Rune follows GitHub commit message conventions:
