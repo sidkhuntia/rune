@@ -22,6 +22,7 @@ var (
 	// Command line flags
 	editFlag           bool
 	allFlag            bool
+	stagedOnlyFlag     bool
 	modelFlag          string
 	setDefaultFlag     string
 	listModelsFlag     bool
@@ -55,6 +56,7 @@ func init() {
 	// Define flags
 	rootCmd.Flags().BoolVarP(&editFlag, "edit", "e", true, "Open editor to edit the generated commit message")
 	rootCmd.Flags().BoolVarP(&allFlag, "all", "a", false, "Include unstaged changes in addition to staged changes")
+	rootCmd.Flags().BoolVarP(&stagedOnlyFlag, "staged-only", "s", false, "Generate commit message only for manually staged changes (ignores config)")
 	rootCmd.Flags().StringVarP(&modelFlag, "model", "m", "", "Use specific model (short name or full ID)")
 	rootCmd.Flags().StringVar(&setDefaultFlag, "set-default-model", "", "Set default model for future use")
 	rootCmd.Flags().BoolVar(&listModelsFlag, "list-models", false, "List all available models and exit")
@@ -85,6 +87,11 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	// Handle set-default-model flag
 	if setDefaultFlag != "" {
 		return handleSetDefaultModel(setDefaultFlag)
+	}
+
+	// Validate flag combinations
+	if allFlag && stagedOnlyFlag {
+		return fmt.Errorf("cannot use both --all and --staged-only flags together")
 	}
 
 	// Load configuration
@@ -150,7 +157,16 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	}
 
 	// Determine what changes to include based on config and flags
-	includeAll := allFlag || !cfg.StagedOnly
+	// Priority: --staged-only flag > --all flag > config setting
+	var includeAll bool
+	if stagedOnlyFlag {
+		includeAll = false // Force staged only, ignoring config
+		if verboseFlag {
+			ui.Info("Using --staged-only: only manually staged changes will be included")
+		}
+	} else {
+		includeAll = allFlag || !cfg.StagedOnly
+	}
 
 	// Track files staged by the tool (for possible unstage on quit)
 	var stagedByTool []string
@@ -158,8 +174,8 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 
 	totalStagedFiles := 0
 
-	// If we're including all changes and config allows auto-staging
-	if includeAll && cfg.AutoStageAll {
+	// If we're including all changes and config allows auto-staging (but not when --staged-only is used)
+	if includeAll && cfg.AutoStageAll && !stagedOnlyFlag {
 		spinner := ui.NewSpinner("Staging all changes...")
 		spinner.Start()
 		
@@ -176,6 +192,13 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		if len(stagedByTool) > 0 {
 			ui.Success("All changes staged successfully")
 		}
+	} else {
+		// Get count of currently staged files
+		stagedFiles, err := git.ListStagedFiles()
+		if err != nil {
+			return fmt.Errorf("failed to list staged files: %w", err)
+		}
+		totalStagedFiles = len(stagedFiles)
 	}
 
 	// Cleanup staged files if commit fails or user quits
@@ -199,7 +222,9 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	spinner := ui.NewSpinner("Analyzing changes...")
 	spinner.Start()
 	
-	diff, err := git.ExtractDiff(true)
+	// Always get staged diff when --staged-only is used, otherwise follow existing logic
+	getStagedDiff := stagedOnlyFlag || !includeAll
+	diff, err := git.ExtractDiff(getStagedDiff)
 	spinner.Stop()
 	
 	if err != nil {
