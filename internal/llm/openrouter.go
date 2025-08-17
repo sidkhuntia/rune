@@ -14,7 +14,7 @@ import (
 
 const (
 	// OpenRouter API endpoint
-	openRouterAPIURL = "https://openrouter.ai/api/v1/chat/completions"
+	openRouterAPIURL  = "https://openrouter.ai/api/v1/chat/completions"
 	openRouterTimeout = 60 * time.Second
 )
 

@@ -98,7 +98,7 @@ func formatSubject(subject *string) string {
 		*subject = strings.TrimSuffix(*subject, ".")
 	}
 
-	// Before converting Rune to subject, I should first check if the first letter is capitalized. 
+	// Before converting Rune to subject, I should first check if the first letter is capitalized.
 	// If it is not, I should convert it to uppercase.
 	if len(*subject) > 0 && unicode.IsLower([]rune(*subject)[0]) {
 		runes := []rune(*subject)

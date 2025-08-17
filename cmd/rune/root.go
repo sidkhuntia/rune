@@ -18,17 +18,22 @@ import (
 	"github.com/siddhartha/rune/internal/ui"
 )
 
+const (
+	// Default timeout for API requests
+	defaultTimeoutSeconds = 60
+)
+
 var (
 	// Command line flags
-	editFlag           bool
-	allFlag            bool
-	stagedOnlyFlag     bool
-	modelFlag          string
-	setDefaultFlag     string
-	listModelsFlag     bool
-	dryRunFlag         bool
-	verboseFlag        bool
-	setupFlag          bool
+	editFlag       bool
+	allFlag        bool
+	stagedOnlyFlag bool
+	modelFlag      string
+	setDefaultFlag string
+	listModelsFlag bool
+	dryRunFlag     bool
+	verboseFlag    bool
+	setupFlag      bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -109,12 +114,12 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Use configurable timeout, default to 60 seconds
-	timeout := 60 * time.Second
+	// Use configurable timeout with constant default
+	timeout := defaultTimeoutSeconds * time.Second
 	if cfg.TimeoutSeconds > 0 {
 		timeout = time.Duration(cfg.TimeoutSeconds) * time.Second
 	}
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
@@ -141,12 +146,12 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	// Check if we need to switch providers
 	if selectedModel.Provider != cfg.Provider {
 		ui.Info(fmt.Sprintf("Switching to %s provider for model %s", selectedModel.Provider, selectedModel.Name))
-		
+
 		// Ensure API key exists for the new provider
 		if err := cfg.EnsureAPIKeyForProvider(selectedModel.Provider); err != nil {
 			return fmt.Errorf("failed to setup provider %s: %w", selectedModel.Provider, err)
 		}
-		
+
 		// Update config temporarily (don't save unless user wants to set as default)
 		cfg.Provider = selectedModel.Provider
 	}
@@ -178,14 +183,14 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	if includeAll && cfg.AutoStageAll && !stagedOnlyFlag {
 		spinner := ui.NewSpinner("Staging all changes...")
 		spinner.Start()
-		
+
 		stageResult, err := git.AtomicStageAll()
 		spinner.Stop()
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to stage changes: %w", err)
 		}
-		
+
 		stagedByTool = stageResult.NewlyStaged
 		totalStagedFiles = len(stageResult.TotalStaged)
 
@@ -221,12 +226,12 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	// Extract the git diff
 	spinner := ui.NewSpinner("Analyzing changes...")
 	spinner.Start()
-	
+
 	// Always get staged diff when --staged-only is used, otherwise follow existing logic
 	getStagedDiff := stagedOnlyFlag || !includeAll
 	diff, err := git.ExtractDiff(getStagedDiff)
 	spinner.Stop()
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to extract git diff: %w", err)
 	}
@@ -246,11 +251,11 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	for {
 		spinner := ui.NewSpinner("Generating commit message...")
 		spinner.Start()
-		
+
 		// Generate the commit message
 		rawMessage, err := client.GenerateCommitMessage(ctx, diff)
 		spinner.UpdateMessage("Formatting commit message...")
-		
+
 		if err != nil {
 			spinner.Stop()
 			return fmt.Errorf("failed to generate commit message: %w", err)
@@ -259,7 +264,7 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		// Format the commit message
 		message, err := commit.FormatCommitMessage(rawMessage)
 		spinner.Stop()
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to format commit message: %w", err)
 		}
@@ -326,7 +331,7 @@ func openEditor(initialMessage string) (string, error) {
 
 	// Create enhanced commit message template
 	template := buildCommitTemplate(initialMessage)
-	
+
 	// Write the template to the temp file
 	if _, err := tmpFile.WriteString(template); err != nil {
 		return "", fmt.Errorf("failed to write to temp file: %w", err)
@@ -396,7 +401,6 @@ func isGitRepository() bool {
 	return err == nil
 }
 
-
 // getGitRootDir returns the root directory of the git repository
 func getGitRootDir() (string, error) {
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
@@ -428,7 +432,7 @@ func buildCommitTemplate(initialMessage string) string {
 	template += "# - Keep the first line under 50 characters\n"
 	template += "# - Separate subject from body with a blank line\n"
 	template += "# - Wrap body at 72 characters\n"
-	
+
 	return template
 }
 
@@ -436,44 +440,44 @@ func buildCommitTemplate(initialMessage string) string {
 func cleanCommitMessage(content string) string {
 	lines := strings.Split(content, "\n")
 	var cleanLines []string
-	
+
 	for _, line := range lines {
 		// Remove comment lines (starting with #)
 		if !strings.HasPrefix(strings.TrimSpace(line), "#") {
 			cleanLines = append(cleanLines, line)
 		}
 	}
-	
+
 	// Join lines and trim
 	result := strings.Join(cleanLines, "\n")
 	result = strings.TrimSpace(result)
-	
+
 	return result
 }
 
 // printAllModels prints all available models in a formatted table
 func printAllModels() {
 	allModels := models.GetAllModels()
-	
+
 	fmt.Printf("\n%sAvailable Models:%s\n", "\033[1m", "\033[0m")
 	fmt.Printf("%-15s %-25s %-12s %-15s %s\n", "SHORT NAME", "MODEL NAME", "PROVIDER", "COMPANY", "DESCRIPTION")
 	fmt.Printf("%s\n", strings.Repeat("-", 100))
-	
+
 	for _, model := range allModels {
 		defaultMarker := ""
 		if model.IsDefault {
 			defaultMarker = " *"
 		}
-		
-		fmt.Printf("%-15s %-25s %-12s %-15s %s%s\n", 
-			model.ShortName, 
-			model.Name, 
-			model.Provider, 
-			model.Company, 
+
+		fmt.Printf("%-15s %-25s %-12s %-15s %s%s\n",
+			model.ShortName,
+			model.Name,
+			model.Provider,
+			model.Company,
 			model.Description,
 			defaultMarker)
 	}
-	
+
 	fmt.Printf("\n%sUsage:%s\n", "\033[1m", "\033[0m")
 	fmt.Printf("  rune --model <short-name>   # Use short name\n")
 	fmt.Printf("  rune --model <full-id>      # Use full model ID\n")
@@ -493,17 +497,17 @@ func handleSetDefaultModel(modelInput string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
-	
+
 	if cfg == nil {
 		ui.Info("No configuration found. Run 'rune --setup' first.")
 		return nil
 	}
-	
+
 	model, err := models.FindModel(modelInput)
 	if err != nil {
 		return fmt.Errorf("model not found: %w", err)
 	}
-	
+
 	// Check if we need API key for this provider
 	if model.Provider != cfg.Provider {
 		ui.Info(fmt.Sprintf("Model %s requires %s provider", model.Name, model.Provider))
@@ -511,13 +515,12 @@ func handleSetDefaultModel(modelInput string) error {
 			return fmt.Errorf("failed to setup provider %s: %w", model.Provider, err)
 		}
 	}
-	
+
 	// Set as default
 	if err := cfg.SetDefaultModel(modelInput); err != nil {
 		return fmt.Errorf("failed to set default model: %w", err)
 	}
-	
+
 	ui.Success(fmt.Sprintf("Default model set to %s (%s)", model.Name, model.Provider))
 	return nil
 }
-

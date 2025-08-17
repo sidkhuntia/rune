@@ -79,7 +79,7 @@ type AtomicStageResult struct {
 // AtomicStageAll performs atomic staging of all changes with proper locking
 func AtomicStageAll() (*AtomicStageResult, error) {
 	var result AtomicStageResult
-	
+
 	err := WithGitLock(func() error {
 		// Get current staged files
 		previousStaged, err := ListStagedFiles()
@@ -87,21 +87,21 @@ func AtomicStageAll() (*AtomicStageResult, error) {
 			return fmt.Errorf("failed to list previously staged files: %w", err)
 		}
 		result.PreviouslyStaged = previousStaged
-		
+
 		// Stage all changes
 		cmd := exec.Command("git", "add", ".")
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("failed to stage changes: %w\nOutput: %s", err, string(output))
 		}
-		
+
 		// Get newly staged files
 		totalStaged, err := ListStagedFiles()
 		if err != nil {
 			return fmt.Errorf("failed to list total staged files: %w", err)
 		}
 		result.TotalStaged = totalStaged
-		
+
 		// Calculate newly staged files
 		for _, file := range totalStaged {
 			found := false
@@ -115,13 +115,13 @@ func AtomicStageAll() (*AtomicStageResult, error) {
 				result.NewlyStaged = append(result.NewlyStaged, file)
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &result, nil
 }

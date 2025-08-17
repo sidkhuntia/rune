@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	
+
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -131,56 +131,56 @@ var ModelRegistry = map[string]*ModelInfo{
 // Model aliases for even easier typing
 var ModelAliases = map[string]string{
 	// Ultra-short aliases (1-2 chars)
-	"d":  "d",           // DeepSeek (default for OpenRouter)
-	"g":  "g2",          // Gemini 2.0 (default for Google)
-	"m":  "m7",          // Mistral 7B
-	"l":  "l3",          // Llama 3.1
-	
+	"d": "d",  // DeepSeek (default for OpenRouter)
+	"g": "g2", // Gemini 2.0 (default for Google)
+	"m": "m7", // Mistral 7B
+	"l": "l3", // Llama 3.1
+
 	// Descriptive aliases
-	"deep":     "d",     // DeepSeek
-	"gemini":   "g2",    // Gemini 2.0
-	"mistral":  "m7",    // Mistral 7B
-	"llama":    "l3",    // Llama 3.1
-	"mytho":    "mx",    // MythoMax
-	"qwen":     "qwq",   // Qwen QwQ
-	"pro":      "gp",    // Gemini Pro
-	
+	"deep":    "d",   // DeepSeek
+	"gemini":  "g2",  // Gemini 2.0
+	"mistral": "m7",  // Mistral 7B
+	"llama":   "l3",  // Llama 3.1
+	"mytho":   "mx",  // MythoMax
+	"qwen":    "qwq", // Qwen QwQ
+	"pro":     "gp",  // Gemini Pro
+
 	// Version-specific aliases
-	"g1":       "g15",   // Gemini 1.5
-	"g15":      "g15",   // Gemini 1.5 Flash
-	"g2":       "g2",    // Gemini 2.0
-	"m7":       "m7",    // Mistral 7B
-	"l3":       "l3",    // Llama 3.1
-	
+	"g1":  "g15", // Gemini 1.5
+	"g15": "g15", // Gemini 1.5 Flash
+	"g2":  "g2",  // Gemini 2.0
+	"m7":  "m7",  // Mistral 7B
+	"l3":  "l3",  // Llama 3.1
+
 	// Provider shortcuts
-	"google":     "g2",  // Default Google model  
-	"openrouter": "d",   // Default OpenRouter model
+	"google":     "g2", // Default Google model
+	"openrouter": "d",  // Default OpenRouter model
 }
 
 // FindModel finds a model by ID, short name, or alias
 func FindModel(query string) (*ModelInfo, error) {
 	query = strings.TrimSpace(strings.ToLower(query))
-	
+
 	// First try exact ID match
 	for id, model := range ModelRegistry {
 		if strings.ToLower(id) == query {
 			return model, nil
 		}
 	}
-	
+
 	// Then try short name match
 	for _, model := range ModelRegistry {
 		if strings.ToLower(model.ShortName) == query {
 			return model, nil
 		}
 	}
-	
+
 	// Finally try alias match
 	if aliasTarget, exists := ModelAliases[query]; exists {
 		// Recursively resolve alias
 		return FindModel(aliasTarget)
 	}
-	
+
 	return nil, fmt.Errorf("model not found: %s", query)
 }
 
@@ -192,7 +192,7 @@ func GetModelsByProvider(provider string) []*ModelInfo {
 			models = append(models, model)
 		}
 	}
-	
+
 	// Sort by default first, then by name
 	sort.Slice(models, func(i, j int) bool {
 		if models[i].IsDefault != models[j].IsDefault {
@@ -200,7 +200,7 @@ func GetModelsByProvider(provider string) []*ModelInfo {
 		}
 		return models[i].Name < models[j].Name
 	})
-	
+
 	return models
 }
 
@@ -210,7 +210,7 @@ func GetAllModels() []*ModelInfo {
 	for _, model := range ModelRegistry {
 		models = append(models, model)
 	}
-	
+
 	// Sort by provider, then by default status, then by name
 	sort.Slice(models, func(i, j int) bool {
 		if models[i].Provider != models[j].Provider {
@@ -221,7 +221,7 @@ func GetAllModels() []*ModelInfo {
 		}
 		return models[i].Name < models[j].Name
 	})
-	
+
 	return models
 }
 
@@ -239,47 +239,47 @@ func GetDefaultModel(provider string) (*ModelInfo, error) {
 func FormatModelsHelp() string {
 	var help strings.Builder
 	help.WriteString("\nAvailable models:\n")
-	
+
 	providers := []string{"gemini", "openrouter"}
-	
+
 	for _, provider := range providers {
 		models := GetModelsByProvider(provider)
 		if len(models) == 0 {
 			continue
 		}
-		
+
 		help.WriteString(fmt.Sprintf("\n  %s:\n", cases.Title(language.English).String(provider)))
 		for _, model := range models {
 			defaultMarker := ""
 			if model.IsDefault {
 				defaultMarker = " (default)"
 			}
-			
+
 			// Show both short name and common aliases
 			aliases := getCommonAliases(model.ShortName)
 			aliasText := ""
 			if len(aliases) > 0 {
 				aliasText = fmt.Sprintf(" | %s", strings.Join(aliases, ", "))
 			}
-			
-			help.WriteString(fmt.Sprintf("    %-6s%s %s%s\n", 
+
+			help.WriteString(fmt.Sprintf("    %-6s%s %s%s\n",
 				model.ShortName, aliasText, model.Name, defaultMarker))
 		}
 	}
-	
+
 	help.WriteString("\nQuick examples:\n")
 	help.WriteString("  --model d      # DeepSeek (1 char!)\n")
-	help.WriteString("  --model g      # Gemini 2.0\n") 
+	help.WriteString("  --model g      # Gemini 2.0\n")
 	help.WriteString("  --model m      # Mistral 7B\n")
 	help.WriteString("  --model l      # Llama 3.1\n")
-	
+
 	return help.String()
 }
 
 // getCommonAliases returns the most useful aliases for a short name
 func getCommonAliases(shortName string) []string {
 	var aliases []string
-	
+
 	for alias, target := range ModelAliases {
 		if target == shortName && alias != shortName {
 			// Only show the most useful aliases (avoid cluttering)
@@ -288,7 +288,7 @@ func getCommonAliases(shortName string) []string {
 			}
 		}
 	}
-	
+
 	// Sort by length (shortest first)
 	sort.Slice(aliases, func(i, j int) bool {
 		if len(aliases[i]) != len(aliases[j]) {
@@ -296,12 +296,12 @@ func getCommonAliases(shortName string) []string {
 		}
 		return aliases[i] < aliases[j]
 	})
-	
+
 	// Limit to 3 most useful aliases
 	if len(aliases) > 3 {
 		aliases = aliases[:3]
 	}
-	
+
 	return aliases
 }
 
@@ -311,11 +311,11 @@ func ValidateModelForProvider(modelID, provider string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if model.Provider != provider {
-		return fmt.Errorf("model %s belongs to provider %s, not %s", 
+		return fmt.Errorf("model %s belongs to provider %s, not %s",
 			modelID, model.Provider, provider)
 	}
-	
+
 	return nil
 }

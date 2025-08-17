@@ -7,9 +7,9 @@ import (
 
 // UserError represents a user-friendly error with suggestions
 type UserError struct {
-	Title       string
-	Description string
-	Suggestions []string
+	Title          string
+	Description    string
+	Suggestions    []string
 	TechnicalError error
 }
 
@@ -21,18 +21,18 @@ func (e *UserError) Error() string {
 // Display shows a user-friendly error message with suggestions
 func (e *UserError) Display() {
 	Error(e.Title)
-	
+
 	if e.Description != "" {
 		fmt.Printf("   %s\n", e.Description)
 	}
-	
+
 	if len(e.Suggestions) > 0 {
 		fmt.Println("\n💡 Suggestions:")
 		for _, suggestion := range e.Suggestions {
 			fmt.Printf("   • %s\n", suggestion)
 		}
 	}
-	
+
 	if e.TechnicalError != nil {
 		fmt.Printf("\n🔧 Technical details: %v\n", e.TechnicalError)
 	}
@@ -41,7 +41,7 @@ func (e *UserError) Display() {
 // TranslateError converts common errors to user-friendly messages
 func TranslateError(err error) *UserError {
 	errMsg := err.Error()
-	
+
 	// Git-related errors
 	if strings.Contains(errMsg, "not a git repository") {
 		return &UserError{
@@ -55,7 +55,7 @@ func TranslateError(err error) *UserError {
 			TechnicalError: err,
 		}
 	}
-	
+
 	if strings.Contains(errMsg, "no changes found") {
 		return &UserError{
 			Title:       "No changes to commit",
@@ -68,7 +68,7 @@ func TranslateError(err error) *UserError {
 			TechnicalError: err,
 		}
 	}
-	
+
 	// API Key related errors
 	if strings.Contains(errMsg, "failed to retrieve API key") {
 		return &UserError{
@@ -82,7 +82,7 @@ func TranslateError(err error) *UserError {
 			TechnicalError: err,
 		}
 	}
-	
+
 	// Network/LLM errors
 	if strings.Contains(errMsg, "failed to generate commit message") {
 		return &UserError{
@@ -97,7 +97,7 @@ func TranslateError(err error) *UserError {
 			TechnicalError: err,
 		}
 	}
-	
+
 	// Timeout errors
 	if strings.Contains(errMsg, "context deadline exceeded") {
 		return &UserError{
@@ -111,7 +111,7 @@ func TranslateError(err error) *UserError {
 			TechnicalError: err,
 		}
 	}
-	
+
 	// Model-related errors
 	if strings.Contains(errMsg, "model not found") {
 		return &UserError{
@@ -125,7 +125,7 @@ func TranslateError(err error) *UserError {
 			TechnicalError: err,
 		}
 	}
-	
+
 	if strings.Contains(errMsg, "failed to resolve model") {
 		return &UserError{
 			Title:       "Invalid model",
@@ -152,7 +152,7 @@ func TranslateError(err error) *UserError {
 			TechnicalError: err,
 		}
 	}
-	
+
 	// Default case
 	return &UserError{
 		Title:       "An error occurred",
@@ -171,7 +171,7 @@ func HandleError(err error) {
 	if err == nil {
 		return
 	}
-	
+
 	userErr := TranslateError(err)
 	userErr.Display()
 }

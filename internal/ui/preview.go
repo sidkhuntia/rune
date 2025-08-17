@@ -33,7 +33,7 @@ func PreviewCommitMessage(message string) {
 	if len(lines) > 0 && strings.TrimSpace(lines[0]) != "" {
 		subject := strings.TrimSpace(lines[0])
 		fmt.Printf("\n%s%s%s%s\n", ColorBold, ColorGreen, subject, ColorReset)
-		
+
 		// Show length indicator for subject
 		subjectLen := utf8.RuneCountInString(subject)
 		if subjectLen > 50 {
@@ -47,14 +47,14 @@ func PreviewCommitMessage(message string) {
 	if len(lines) > 1 {
 		bodyLines := lines[1:]
 		hasBody := false
-		
+
 		for _, line := range bodyLines {
 			if strings.TrimSpace(line) != "" {
 				hasBody = true
 				break
 			}
 		}
-		
+
 		if hasBody {
 			fmt.Printf("\n%sDescription:%s\n", ColorBold, ColorReset)
 			for _, line := range bodyLines {

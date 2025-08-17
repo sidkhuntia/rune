@@ -73,8 +73,6 @@ func NewGeminiClient(model string) (*GeminiClient, error) {
 	// Build the full URL with the model
 	baseURL := fmt.Sprintf("%s/%s:generateContent", geminiAPIBaseURL, model)
 
-
-
 	return &GeminiClient{
 		apiKey:  apiKey,
 		baseURL: baseURL,
@@ -89,7 +87,7 @@ func NewGeminiClient(model string) (*GeminiClient, error) {
 // NewGeminiClientWithConfig creates a new GeminiClient with custom configuration
 func NewGeminiClientWithConfig(apiKey, baseURL, model string) *GeminiClient {
 	if model == "" {
-	
+
 		model = defaultGeminiModel
 	}
 
