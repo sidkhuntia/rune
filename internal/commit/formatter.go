@@ -2,8 +2,10 @@ package commit
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -12,6 +14,29 @@ const (
 	// MaxBodyLineLength is the maximum recommended length for commit body lines
 	MaxBodyLineLength = 72
 )
+
+// conventionalSubject matches "type(scope)!: description".
+var conventionalSubject = regexp.MustCompile(`^[a-z]+(\([^)]+\))?!?: \S`)
+
+// IsConventional reports whether a subject follows Conventional Commits.
+func IsConventional(subject string) bool {
+	return conventionalSubject.MatchString(subject)
+}
+
+// DetectConventional reports whether the history mostly uses Conventional
+// Commits. With no history it returns true, the more informative default.
+func DetectConventional(subjects []string) bool {
+	if len(subjects) == 0 {
+		return true
+	}
+	n := 0
+	for _, s := range subjects {
+		if IsConventional(s) {
+			n++
+		}
+	}
+	return n*2 >= len(subjects)
+}
 
 // Message represents a structured commit message
 type Message struct {
@@ -98,17 +123,16 @@ func formatSubject(subject *string) string {
 		*subject = strings.TrimSuffix(*subject, ".")
 	}
 
-	// Before converting Rune to subject, I should first check if the first letter is capitalized.
-	// If it is not, I should convert it to uppercase.
-	if len(*subject) > 0 && unicode.IsLower([]rune(*subject)[0]) {
+	// Capitalize plain subjects; Conventional Commits stay lowercase ("feat: add x").
+	if !IsConventional(*subject) && len(*subject) > 0 && unicode.IsLower([]rune(*subject)[0]) {
 		runes := []rune(*subject)
 		runes[0] = unicode.ToUpper(runes[0])
 		*subject = string(runes)
 	}
 
-	// Truncate if too long
-	if len(*subject) > MaxSubjectLength {
-		*subject = (*subject)[:MaxSubjectLength-3] + "..."
+	// Truncate if too long (by rune, so multi-byte characters are never split)
+	if r := []rune(*subject); len(r) > MaxSubjectLength {
+		*subject = string(r[:MaxSubjectLength-3]) + "..."
 	}
 
 	return *subject
@@ -209,8 +233,8 @@ func ValidateMessage(msg *Message) error {
 		return fmt.Errorf("empty subject line")
 	}
 
-	if len(msg.Subject) > MaxSubjectLength {
-		return fmt.Errorf("subject line too long: %d characters (max %d)", len(msg.Subject), MaxSubjectLength)
+	if n := utf8.RuneCountInString(msg.Subject); n > MaxSubjectLength {
+		return fmt.Errorf("subject line too long: %d characters (max %d)", n, MaxSubjectLength)
 	}
 
 	if strings.HasSuffix(msg.Subject, ".") {
@@ -218,7 +242,7 @@ func ValidateMessage(msg *Message) error {
 	}
 
 	// Check if subject starts with lowercase (should be capitalized)
-	if len(msg.Subject) > 0 && unicode.IsLower([]rune(msg.Subject)[0]) {
+	if !IsConventional(msg.Subject) && len(msg.Subject) > 0 && unicode.IsLower([]rune(msg.Subject)[0]) {
 		return fmt.Errorf("subject line should start with a capital letter")
 	}
 

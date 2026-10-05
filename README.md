@@ -22,7 +22,13 @@
 ### Using Homebrew
 
 ```bash
-brew install sidkhuntia/rune/rune
+brew install sidkhuntia/tap/rune
+```
+
+### Updating
+
+```bash
+rune --update   # or: brew upgrade rune
 ```
 
 ### From Source
@@ -68,6 +74,28 @@ This will guide you through:
 1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Create a new API key
 3. Use it during setup or set `GEMINI_API_KEY` environment variable
+
+## How it works
+
+Rune sends the model more than a raw diff: your branch name, your last few commit subjects (so it matches your style, Conventional Commits or plain), a `--stat` summary, and a diff with lockfiles and generated files removed and each file size-bounded.
+
+It proposes several candidates at once:
+
+```
+1  feat(client): add exponential backoff retries to Do
+2  feat(client): implement retry with exponential backoff
+   Do now accepts a function and retries it up to three times ...
+
+1-2 commit   e edit   r regenerate (add a hint: r shorter)   q quit
+>
+```
+
+- `1`..`N` commit that message; `e` / `e2` edit one first
+- `r` regenerates (never repeating earlier subjects); `r mention the cache` steers it
+- `rune --hint "focus on the auth change"` steers the first round
+- `rune -n 1` for a single candidate, `rune --style plain|conventional` to override detection
+- `rune --dry-run` previews without committing; `rune -y` commits non-interactively (CI/scripts)
+- Set `OPENROUTER_API_KEY` or `GEMINI_API_KEY` to run without `rune --setup`
 
 ## Usage
 

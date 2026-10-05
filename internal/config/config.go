@@ -35,7 +35,7 @@ const (
 // Default models for each provider
 var DefaultModels = map[string]string{
 	ProviderGemini:     "gemini-2.0-flash-exp",
-	ProviderOpenRouter: "deepseek/deepseek-chat",
+	ProviderOpenRouter: "nvidia/nemotron-3-ultra-550b-a55b:free",
 }
 
 // getConfigPath returns the path to the configuration file
@@ -220,8 +220,34 @@ func (c *Config) GetEnvVarName() string {
 	}
 }
 
-// GetAPIKey retrieves the API key from secure storage
+// FromEnv builds an in-memory config from provider API key environment
+// variables, so rune works in CI and scripts without running setup.
+// It returns nil when no supported variable is set.
+func FromEnv() *Config {
+	for _, provider := range []string{ProviderOpenRouter, ProviderGemini} {
+		c := &Config{Provider: provider, Model: DefaultModels[provider], StagedOnly: true}
+		if os.Getenv(c.GetEnvVarName()) != "" {
+			return c
+		}
+	}
+	return nil
+}
+
+// HasAPIKey reports whether an API key is available for the current provider.
+func (c *Config) HasAPIKey() bool {
+	_, err := c.GetAPIKey()
+	return err == nil
+}
+
+// GetAPIKey returns the API key from the provider's environment variable,
+// falling back to secure storage.
 func (c *Config) GetAPIKey() (string, error) {
+	if envVar := c.GetEnvVarName(); envVar != "" {
+		if key := strings.TrimSpace(os.Getenv(envVar)); key != "" {
+			return key, nil
+		}
+	}
+
 	service := "rune-cli"
 	user := c.Provider
 

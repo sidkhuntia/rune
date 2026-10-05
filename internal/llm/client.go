@@ -4,8 +4,8 @@ import "context"
 
 // LLMClient defines the interface for interacting with language models
 type LLMClient interface {
-	// GenerateCommitMessage generates a commit message based on the provided diff
-	GenerateCommitMessage(ctx context.Context, diff string) (string, error)
+	// GenerateCommitMessage generates a commit message for the request
+	GenerateCommitMessage(ctx context.Context, req Request) (string, error)
 }
 
 // Message represents a single message in the conversation
@@ -37,6 +37,10 @@ type ChatCompletionResponse struct {
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
+	Error *struct {
+		Code    any    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
 	Usage struct {
 		PromptTokens     int `json:"prompt_tokens"`
 		CompletionTokens int `json:"completion_tokens"`

@@ -2,7 +2,6 @@ version: 2
 
 before:
   hooks:
-    - go mod tidy
     - go test ./...
 
 builds:
@@ -11,6 +10,8 @@ builds:
     binary: rune
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
     goos:
       - darwin
       - linux
@@ -39,15 +40,14 @@ brews:
   - name: rune
     repository:
       owner: sidkhuntia
-      name: rune
-    directory: Formula
+      name: homebrew-tap
+      branch: main
+      # A PAT with write access to the tap; GITHUB_TOKEN cannot push cross-repo.
+      token: "{{ .Env.COMMITTER_TOKEN }}"
     homepage: https://github.com/sidkhuntia/rune
     description: "AI-powered Git commit message generator"
     license: MIT
-    test: |
-      system "#{bin}/rune --help"
     install: |
       bin.install "rune"
-    custom_require: ""
-    custom_block: |
-      head "https://github.com/sidkhuntia/rune.git"
+    test: |
+      assert_match version.to_s, shell_output("#{bin}/rune --version")

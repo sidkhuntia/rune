@@ -81,6 +81,40 @@ func ShowCommitOptions() {
 	fmt.Printf("\n%sEnter your choice (1-4): %s", ColorBold, ColorReset)
 }
 
+// PreviewCandidates lists numbered candidate messages. A single candidate is
+// shown in full; with several, each gets its subject and body.
+func PreviewCandidates(messages []string) {
+	fmt.Println()
+	for i, m := range messages {
+		subject, body, _ := strings.Cut(m, "\n")
+		subject = strings.TrimSpace(subject)
+		n := utf8.RuneCountInString(subject)
+
+		warn := ""
+		if n > 72 {
+			warn = fmt.Sprintf("  %s⚠ %d chars%s", ColorYellow, n, ColorReset)
+		}
+		fmt.Printf("%s%s%d%s  %s%s%s%s\n", ColorBold, ColorCyan, i+1, ColorReset, ColorBold, subject, ColorReset, warn)
+
+		for _, line := range strings.Split(strings.TrimSpace(body), "\n") {
+			if strings.TrimSpace(line) != "" {
+				fmt.Printf("   %s%s%s\n", ColorDim, line, ColorReset)
+			}
+		}
+		fmt.Println()
+	}
+}
+
+// ShowCandidateOptions prints the action prompt for the candidate list.
+func ShowCandidateOptions(count int) {
+	pick := "1"
+	if count > 1 {
+		pick = fmt.Sprintf("1-%d", count)
+	}
+	fmt.Printf("%s%s%s commit   %se%s edit   %sr%s regenerate (add a hint: r shorter)   %sq%s quit\n> ",
+		ColorBold, pick, ColorReset, ColorBold, ColorReset, ColorBold, ColorReset, ColorBold, ColorReset)
+}
+
 // ShowSetupWelcome displays a welcome message for setup
 func ShowSetupWelcome() {
 	fmt.Printf("\n%s%s🚀 Welcome to Rune!%s%s\n", ColorBold, ColorCyan, ColorReset, ColorReset)

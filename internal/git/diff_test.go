@@ -41,6 +41,10 @@ func TestExtractDiff(t *testing.T) {
 	if err := exec.Command("git", "config", "user.name", "Test User").Run(); err != nil {
 		t.Fatalf("Failed to set git user.name: %v", err)
 	}
+	// Keep the test hermetic: a developer's global signing config must not apply.
+	if err := exec.Command("git", "config", "commit.gpgsign", "false").Run(); err != nil {
+		t.Fatalf("Failed to disable commit signing: %v", err)
+	}
 
 	// Create initial commit
 	if err := os.WriteFile("main.go", []byte(`package main

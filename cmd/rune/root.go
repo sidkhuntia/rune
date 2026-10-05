@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -21,6 +22,12 @@ import (
 const (
 	// Default timeout for API requests
 	defaultTimeoutSeconds = 60
+
+	// defaultCandidates is how many messages are proposed per round.
+	defaultCandidates = 3
+
+	// diffBudget caps diff characters sent to the model.
+	diffBudget = 60_000
 )
 
 var (
@@ -34,6 +41,11 @@ var (
 	dryRunFlag     bool
 	verboseFlag    bool
 	setupFlag      bool
+	yesFlag        bool
+	updateFlag     bool
+	hintFlag       string
+	styleFlag      string
+	candidatesFlag int
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -46,6 +58,12 @@ by analyzing staged diffs using AI models.
 The tool follows GitHub commit message conventions and allows you to edit
 the generated message before committing.` + models.FormatModelsHelp(),
 	RunE: generateCommitMessage,
+
+	Version: currentVersion(),
+
+	// Runtime failures are reported once by ui.HandleError; usage text is noise there.
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -67,11 +85,20 @@ func init() {
 	rootCmd.Flags().BoolVar(&listModelsFlag, "list-models", false, "List all available models and exit")
 	rootCmd.Flags().BoolVar(&dryRunFlag, "dry-run", false, "Generate commit message without actually committing")
 	rootCmd.Flags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output")
+	rootCmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "Commit with the generated message without prompting (non-interactive)")
+	rootCmd.Flags().BoolVar(&updateFlag, "update", false, "Update rune to the latest release and exit")
+	rootCmd.Flags().StringVar(&hintFlag, "hint", "", "Guide the message (e.g. \"focus on the auth change\")")
+	rootCmd.Flags().StringVar(&styleFlag, "style", "auto", "Message style: auto (match repo history), conventional, or plain")
+	rootCmd.Flags().IntVarP(&candidatesFlag, "candidates", "n", defaultCandidates, "Number of candidate messages to generate (1-5)")
 	rootCmd.Flags().BoolVar(&setupFlag, "setup", false, "Run interactive setup to configure AI provider")
 }
 
 // generateCommitMessage is the main function that orchestrates the commit message generation
 func generateCommitMessage(cmd *cobra.Command, args []string) error {
+
+	if updateFlag {
+		return runUpdate()
+	}
 
 	// Handle list-models flag
 	if listModelsFlag {
@@ -95,6 +122,12 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate flag combinations
+	if candidatesFlag < 1 || candidatesFlag > maxCandidates {
+		return fmt.Errorf("--candidates must be between 1 and %d", maxCandidates)
+	}
+	if yesFlag && dryRunFlag {
+		return fmt.Errorf("cannot use both --yes and --dry-run flags together")
+	}
 	if allFlag && stagedOnlyFlag {
 		return fmt.Errorf("cannot use both --all and --staged-only flags together")
 	}
@@ -105,8 +138,13 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Fall back to API key environment variables (CI, scripts)
+	if cfg == nil {
+		cfg = config.FromEnv()
+	}
+
 	// Run interactive setup if not configured
-	if cfg == nil || !config.IsConfigured() {
+	if cfg == nil || !cfg.HasAPIKey() {
 		ui.Info("Rune is not configured yet.")
 		cfg, err = config.InteractiveSetup()
 		if err != nil {
@@ -119,9 +157,6 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 	if cfg.TimeoutSeconds > 0 {
 		timeout = time.Duration(cfg.TimeoutSeconds) * time.Second
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
 
 	// check if the current directory is a git repository
 	if !isGitRepository() {
@@ -223,21 +258,27 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Extract the git diff
+	// Extract the diff (noise filtered, size bounded) and repository context
 	spinner := ui.NewSpinner("Analyzing changes...")
 	spinner.Start()
 
 	// Always get staged diff when --staged-only is used, otherwise follow existing logic
 	getStagedDiff := stagedOnlyFlag || !includeAll
-	diff, err := git.ExtractDiff(getStagedDiff)
+	diff, err := git.SmartDiff(getStagedDiff, diffBudget)
+	repoCtx := git.GatherContext(getStagedDiff)
 	spinner.Stop()
 
 	if err != nil {
 		return fmt.Errorf("failed to extract git diff: %w", err)
 	}
 
+	style, err := resolveStyle(styleFlag, repoCtx.Recent)
+	if err != nil {
+		return err
+	}
+
 	if verboseFlag {
-		ui.Info(fmt.Sprintf("Found %d characters of changes", len(diff)))
+		ui.Info(fmt.Sprintf("Found %d characters of changes (style: %s, branch: %s)", len(diff), style, repoCtx.Branch))
 	}
 
 	// Initialize the LLM client with selected model
@@ -247,61 +288,87 @@ func generateCommitMessage(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize LLM client: %w", err)
 	}
 
+	stdin := bufio.NewReader(os.Stdin)
+	req := llm.Request{
+		Diff:   diff,
+		Stat:   repoCtx.Stat,
+		Branch: repoCtx.Branch,
+		Recent: repoCtx.Recent,
+		Style:  style,
+		Hint:   hintFlag,
+	}
+
+	// --yes has no one to choose between candidates, so don't pay for extras.
+	count := candidatesFlag
+	if yesFlag {
+		count = 1
+	}
+
 	var finalMessage string
 	for {
-		spinner := ui.NewSpinner("Generating commit message...")
+		spinner := ui.NewSpinner(generatingLabel(count))
 		spinner.Start()
-
-		// Generate the commit message
-		rawMessage, err := client.GenerateCommitMessage(ctx, diff)
-		spinner.UpdateMessage("Formatting commit message...")
-
+		// The timeout bounds one round of API calls, not time spent at the prompt.
+		genCtx, cancelGen := context.WithTimeout(context.Background(), timeout)
+		candidates, failures, err := generateCandidates(genCtx, client, req, count)
+		cancelGen()
+		spinner.Stop()
 		if err != nil {
-			spinner.Stop()
 			return fmt.Errorf("failed to generate commit message: %w", err)
 		}
-
-		// Format the commit message
-		message, err := commit.FormatCommitMessage(rawMessage)
-		spinner.Stop()
-
-		if err != nil {
-			return fmt.Errorf("failed to format commit message: %w", err)
+		if len(failures) > 0 {
+			ui.Warning(fmt.Sprintf("%d of %d candidates failed: %v", len(failures), count, failures[0]))
 		}
 
-		// Validate the message
-		if err := commit.ValidateMessage(message); err != nil {
-			ui.Warning(err.Error())
+		texts := make([]string, len(candidates))
+		for i, c := range candidates {
+			texts[i] = c.Format()
+			if verr := commit.ValidateMessage(c); verr != nil {
+				ui.Warning(fmt.Sprintf("Message %d: %v", i+1, verr))
+			}
+		}
+		ui.PreviewCandidates(texts)
+
+		if dryRunFlag {
+			ui.Info("Dry run: no commit was made.")
+			return nil // defer will handle cleanup
+		}
+		if yesFlag {
+			finalMessage = texts[0]
+			break
 		}
 
-		ui.PreviewCommitMessage(message.Format())
-		ui.ShowCommitOptions()
-		var choice string
-		if _, err := fmt.Scanln(&choice); err != nil {
-			ui.Warning(fmt.Sprintf("Failed to read input: %v", err))
+		// Remember what was shown so a regenerate does not repeat itself.
+		for _, c := range candidates {
+			req.Avoid = append(req.Avoid, c.Subject)
 		}
 
-		switch choice {
-		case "1":
-			continue // re-generate
-		case "2":
-			finalMessage = message.Format()
-		case "3":
-			editedMessage, err := openEditor(message.Format())
+		act, ok := promptAction(stdin, len(candidates))
+		if !ok {
+			return fmt.Errorf("no input available to choose an action (use --yes to commit non-interactively)")
+		}
+
+		switch act.kind {
+		case actRegenerate:
+			if act.hint != "" {
+				req.Hint = act.hint
+			}
+			continue
+		case actQuit:
+			ui.Info("Aborted. No commit was made.")
+			return nil // defer will handle cleanup
+		case actEdit:
+			edited, err := openEditor(texts[act.index])
 			if err != nil {
 				return fmt.Errorf("failed to open editor: %w", err)
 			}
-			if strings.TrimSpace(editedMessage) == "" {
-				ui.Info("No changes made. Returning to options.")
+			if strings.TrimSpace(edited) == "" {
+				ui.Info("Empty message. Returning to options.")
 				continue
 			}
-			finalMessage = editedMessage
-		case "4":
-			ui.Info("Aborted. No commit was made.")
-			return nil // defer will handle cleanup
-		default:
-			ui.Warning("Invalid choice. Please enter 1, 2, 3, or 4.")
-			continue
+			finalMessage = edited
+		case actCommit:
+			finalMessage = texts[act.index]
 		}
 		break
 	}
@@ -523,4 +590,44 @@ func handleSetDefaultModel(modelInput string) error {
 
 	ui.Success(fmt.Sprintf("Default model set to %s (%s)", model.Name, model.Provider))
 	return nil
+}
+
+// resolveStyle maps the --style flag, detecting from history when "auto".
+func resolveStyle(flag string, recent []string) (string, error) {
+	switch flag {
+	case "conventional":
+		return llm.StyleConventional, nil
+	case "plain":
+		return llm.StylePlain, nil
+	case "auto", "":
+		if commit.DetectConventional(recent) {
+			return llm.StyleConventional, nil
+		}
+		return llm.StylePlain, nil
+	}
+	return "", fmt.Errorf("invalid --style %q (use auto, conventional or plain)", flag)
+}
+
+func generatingLabel(count int) string {
+	if count > 1 {
+		return fmt.Sprintf("Generating %d commit messages...", count)
+	}
+	return "Generating commit message..."
+}
+
+// promptAction reads choices until one parses. ok is false when input ends.
+func promptAction(in *bufio.Reader, count int) (action, bool) {
+	for {
+		ui.ShowCandidateOptions(count)
+		line, err := in.ReadString('\n')
+		if err != nil && line == "" {
+			return action{}, false
+		}
+		act, perr := parseAction(line, count)
+		if perr != nil {
+			ui.Warning(perr.Error())
+			continue
+		}
+		return act, true
+	}
 }

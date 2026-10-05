@@ -106,23 +106,21 @@ func NewGeminiClientWithConfig(apiKey, baseURL, model string) *GeminiClient {
 }
 
 // GenerateCommitMessage generates a commit message based on the provided diff
-func (c *GeminiClient) GenerateCommitMessage(ctx context.Context, diff string) (string, error) {
-	prompt := BuildCommitPrompt(diff)
-
+func (c *GeminiClient) GenerateCommitMessage(ctx context.Context, r Request) (string, error) {
 	// Create the request payload using Gemini's format
 	reqBody := GeminiRequest{
 		Contents: []GeminiContent{
 			{
 				Parts: []GeminiPart{
 					{
-						Text: "You are a helpful assistant that generates concise, descriptive Git commit messages following GitHub conventions.\n\n" + prompt,
+						Text: SystemPrompt(r.Style) + "\n" + UserPrompt(r),
 					},
 				},
 				Role: "user",
 			},
 		},
 		GenerationConfig: &GeminiGenerationConfig{
-			Temperature:     0.3,
+			Temperature:     temperatureOr(r, 0.3),
 			MaxOutputTokens: 1000,
 		},
 	}

@@ -107,7 +107,7 @@ func TestQwenClient_GenerateCommitMessage(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			result, err := client.GenerateCommitMessage(ctx, tt.diff)
+			result, err := client.GenerateCommitMessage(ctx, Request{Diff: tt.diff})
 
 			if tt.expectedError != "" {
 				if err == nil {
@@ -200,7 +200,7 @@ func TestQwenClient_RequestTimeout(t *testing.T) {
 	client.httpClient.Timeout = 100 * time.Millisecond
 
 	ctx := context.Background()
-	_, err := client.GenerateCommitMessage(ctx, "test diff")
+	_, err := client.GenerateCommitMessage(ctx, Request{Diff: "test diff"})
 
 	if err == nil {
 		t.Error("Expected timeout error, got nil")
@@ -226,7 +226,7 @@ func TestQwenClient_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	_, err := client.GenerateCommitMessage(ctx, "test diff")
+	_, err := client.GenerateCommitMessage(ctx, Request{Diff: "test diff"})
 
 	if err == nil {
 		t.Error("Expected context cancellation error, got nil")

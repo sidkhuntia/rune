@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 )
@@ -24,6 +25,11 @@ func NewSpinner(message string) *Spinner {
 
 // Start begins the spinner animation
 func (s *Spinner) Start() {
+	// Animation frames and clear-line escapes only pollute pipes and CI logs.
+	if !isTerminal() {
+		return
+	}
+
 	s.mu.Lock()
 	if s.active {
 		s.mu.Unlock()
@@ -78,6 +84,12 @@ func (s *Spinner) spin() {
 			i++
 		}
 	}
+}
+
+// isTerminal reports whether stdout is an interactive terminal.
+func isTerminal() bool {
+	info, err := os.Stdout.Stat()
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 // clearLine returns a string that clears the current line

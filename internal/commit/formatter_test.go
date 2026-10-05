@@ -3,6 +3,7 @@ package commit
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestFormatCommitMessage(t *testing.T) {
@@ -375,5 +376,32 @@ func TestFormatSubject(t *testing.T) {
 				t.Errorf("formatSubject(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestConventionalSubjectsKeepCase(t *testing.T) {
+	msg, err := FormatCommitMessage("feat(api): add retry\n\nExplain.")
+	if err != nil || msg.Subject != "feat(api): add retry" {
+		t.Fatalf("got %+v, %v", msg, err)
+	}
+	if err := ValidateMessage(msg); err != nil {
+		t.Errorf("conventional subject should validate: %v", err)
+	}
+	plain, _ := FormatCommitMessage("add retry")
+	if plain.Subject != "Add retry" {
+		t.Errorf("plain subject = %q", plain.Subject)
+	}
+}
+
+func TestSubjectTruncationIsRuneSafe(t *testing.T) {
+	msg, err := FormatCommitMessage("Fix " + strings.Repeat("é", 100))
+	if err != nil || !utf8.ValidString(msg.Subject) || utf8.RuneCountInString(msg.Subject) != MaxSubjectLength {
+		t.Fatalf("got %q (%d runes), %v", msg.Subject, utf8.RuneCountInString(msg.Subject), err)
+	}
+}
+
+func TestDetectConventional(t *testing.T) {
+	if !DetectConventional(nil) || !DetectConventional([]string{"feat: a", "Add b"}) || DetectConventional([]string{"Add a", "Fix b", "feat: c"}) {
+		t.Error("unexpected detection result")
 	}
 }

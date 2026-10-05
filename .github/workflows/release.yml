@@ -1,0 +1,92 @@
+name: Release
+
+# Every push to main is released automatically: the next semantic version is
+# derived from Conventional Commit messages since the last tag, the tag is
+# created, and GoReleaser publishes binaries and updates the Homebrew tap.
+# Pushing a v* tag by hand also releases it.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".github/**"
+
+permissions:
+  contents: write
+
+# Serialize releases so two quick merges cannot compute the same version.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Compute and push next tag
+        if: github.ref_type == 'branch'
+        id: tag
+        env:
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          if grep -qiF '[skip release]' <<<"$HEAD_MESSAGE"; then
+            echo "[skip release] found; not releasing"; exit 0
+          fi
+
+          last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || echo v0.0.0)
+          range="$last..HEAD"; [ "$last" = v0.0.0 ] && range=HEAD
+          subjects=$(git log "$range" --format=%s)
+          bodies=$(git log "$range" --format=%B)
+
+          if [ -z "$subjects" ]; then echo "No commits since $last"; exit 0; fi
+
+          # Skip when every commit is non-user-facing (docs, ci, chore, test, style).
+          if ! grep -qvE '^(docs|ci|chore|test|style)(\([^)]*\))?!?:' <<<"$subjects"; then
+            echo "Only non-releasable commits since $last; not releasing"; exit 0
+          fi
+
+          IFS=. read -r major minor patch <<<"${last#v}"
+          if grep -qE '^[a-z]+(\([^)]*\))?!:' <<<"$subjects" || grep -q 'BREAKING CHANGE' <<<"$bodies"; then
+            major=$((major + 1)); minor=0; patch=0
+          elif grep -qE '^feat(\([^)]*\))?:' <<<"$subjects"; then
+            minor=$((minor + 1)); patch=0
+          else
+            patch=$((patch + 1))
+          fi
+          next="v$major.$minor.$patch"
+
+          echo "Releasing $next (was $last)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$next" -m "Release $next"
+          git push origin "$next"
+          echo "tag=$next" >> "$GITHUB_OUTPUT"
+
+      # On a branch push this only runs if the previous step created a tag.
+      - name: GoReleaser
+        if: github.ref_type == 'tag' || steps.tag.outputs.tag != ''
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with write access to sidkhuntia/homebrew-tap
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}

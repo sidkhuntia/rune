@@ -64,23 +64,21 @@ func NewQwenClientWithConfig(apiKey, baseURL, model string) *QwenClient {
 }
 
 // GenerateCommitMessage generates a commit message based on the provided diff
-func (c *QwenClient) GenerateCommitMessage(ctx context.Context, diff string) (string, error) {
-	prompt := BuildCommitPrompt(diff)
-
+func (c *QwenClient) GenerateCommitMessage(ctx context.Context, r Request) (string, error) {
 	// Create the request payload using OpenAI-compatible format for Novita.ai
 	reqBody := ChatCompletionRequest{
 		Model: c.model,
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: "You are a helpful assistant that generates concise, descriptive Git commit messages following GitHub conventions.",
+				Content: SystemPrompt(r.Style),
 			},
 			{
 				Role:    "user",
-				Content: prompt,
+				Content: UserPrompt(r),
 			},
 		},
-		Temperature: 0.3,
+		Temperature: temperatureOr(r, 0.3),
 		MaxTokens:   512,
 	}
 

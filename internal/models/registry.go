@@ -56,6 +56,16 @@ var ModelRegistry = map[string]*ModelInfo{
 	},
 
 	// OpenRouter models
+	"nvidia/nemotron-3-ultra-550b-a55b:free": {
+		ID:          "nvidia/nemotron-3-ultra-550b-a55b:free",
+		ShortName:   "nm",
+		Name:        "Nemotron 3 Ultra 550B",
+		Provider:    "openrouter",
+		Company:     "NVIDIA",
+		Description: "Free tier reasoning model, strong at code understanding",
+		ContextSize: 262144,
+		IsDefault:   true,
+	},
 	"deepseek/deepseek-v3": {
 		ID:          "deepseek/deepseek-chat-v3:free",
 		ShortName:   "dv3",
@@ -64,7 +74,7 @@ var ModelRegistry = map[string]*ModelInfo{
 		Company:     "DeepSeek",
 		Description: "Large context window, excellent code understanding",
 		ContextSize: 163840,
-		IsDefault:   true,
+		IsDefault:   false,
 	},
 	"deepseek/r1": {
 		ID:          "deepseek/deepseek-r1-0528:free",
@@ -131,19 +141,21 @@ var ModelRegistry = map[string]*ModelInfo{
 // Model aliases for even easier typing
 var ModelAliases = map[string]string{
 	// Ultra-short aliases (1-2 chars)
-	"d": "d",  // DeepSeek (default for OpenRouter)
-	"g": "g2", // Gemini 2.0 (default for Google)
-	"m": "m7", // Mistral 7B
-	"l": "l3", // Llama 3.1
+	"d": "dv3", // DeepSeek V3
+	"g": "g2",  // Gemini 2.0 (default for Google)
+	"m": "m7",  // Mistral 7B
+	"l": "l3",  // Llama 3.1
 
 	// Descriptive aliases
-	"deep":    "d",   // DeepSeek
-	"gemini":  "g2",  // Gemini 2.0
-	"mistral": "m7",  // Mistral 7B
-	"llama":   "l3",  // Llama 3.1
-	"mytho":   "mx",  // MythoMax
-	"qwen":    "qwq", // Qwen QwQ
-	"pro":     "gp",  // Gemini Pro
+	"deep":     "dv3", // DeepSeek
+	"nemotron": "nm",  // Nemotron 3 Ultra
+	"nvidia":   "nm",  // Nemotron 3 Ultra
+	"gemini":   "g2",  // Gemini 2.0
+	"mistral":  "m7",  // Mistral 7B
+	"llama":    "l3",  // Llama 3.1
+	"mytho":    "mx",  // MythoMax
+	"qwen":     "qwq", // Qwen QwQ
+	"pro":      "gp",  // Gemini Pro
 
 	// Version-specific aliases
 	"g1":  "g15", // Gemini 1.5
@@ -154,7 +166,7 @@ var ModelAliases = map[string]string{
 
 	// Provider shortcuts
 	"google":     "g2", // Default Google model
-	"openrouter": "d",  // Default OpenRouter model
+	"openrouter": "nm", // Default OpenRouter model
 }
 
 // FindModel finds a model by ID, short name, or alias
@@ -164,6 +176,13 @@ func FindModel(query string) (*ModelInfo, error) {
 	// First try exact ID match
 	for id, model := range ModelRegistry {
 		if strings.ToLower(id) == query {
+			return model, nil
+		}
+	}
+
+	// Then try the upstream model ID (registry keys can differ from IDs)
+	for _, model := range ModelRegistry {
+		if strings.ToLower(model.ID) == query {
 			return model, nil
 		}
 	}
